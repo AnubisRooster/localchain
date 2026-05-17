@@ -6,7 +6,9 @@ const NAV_ITEMS = [
   { href: "/explorer", label: "Explorer", icon: "🔍" },
   { href: "/transactions", label: "Transactions", icon: "↔" },
   { href: "/nodes", label: "Nodes", icon: "◎" },
+  { href: "/registry", label: "Registry", icon: "📋" },
   { href: "/security", label: "Security", icon: "🛡" },
+  { href: "/settings", label: "Settings", icon: "⚙" },
 ];
 
 export default function Layout({ children }) {

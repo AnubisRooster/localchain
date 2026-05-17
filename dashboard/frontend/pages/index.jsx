@@ -11,6 +11,9 @@ export default function Dashboard() {
   const { data: blocks } = useApi("/api/blocks/latest", 5000);
   const { data: validators } = useApi("/api/validators", 10000);
   const { data: system } = useApi("/api/system", 5000);
+  const { data: nodesData } = useApi("/api/nodes", 15000);
+  const { data: selectData } = useApi("/api/nodes/select", 0);
+  const { data: registryStats } = useApi("/api/nodes/stats", 0);
 
   const [blockHistory, setBlockHistory] = useState([]);
 
@@ -28,6 +31,8 @@ export default function Dashboard() {
   }, [health?.blockHeight]);
 
   const isOnline = health?.status === "ok";
+  const nodes = nodesData?.nodes || [];
+  const onlineNodes = nodes.filter((n) => n.status === "online").length;
 
   return (
     <div>
@@ -38,20 +43,27 @@ export default function Dashboard() {
             Real-time overview of your LocalChain network
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <span
-            className={`inline-block h-2.5 w-2.5 rounded-full ${
-              isOnline ? "bg-emerald-400 animate-pulse" : "bg-red-500"
-            }`}
-          />
-          <span className="text-sm text-slate-400">
-            {isOnline ? "Online" : "Offline"}
-          </span>
+        <div className="flex items-center gap-4">
+          {selectData?.node && (
+            <span className="text-xs text-slate-400">
+              Node: <span className="font-medium text-sky-400">{selectData.node.moniker}</span>
+            </span>
+          )}
+          <div className="flex items-center gap-2">
+            <span
+              className={`inline-block h-2.5 w-2.5 rounded-full ${
+                isOnline ? "bg-emerald-400 animate-pulse" : "bg-red-500"
+              }`}
+            />
+            <span className="text-sm text-slate-400">
+              {isOnline ? "Online" : "Offline"}
+            </span>
+          </div>
         </div>
       </div>
 
       {/* ── Stat cards ──────────────────────────── */}
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard
           title="Block Height"
           value={health?.blockHeight?.toLocaleString()}
@@ -71,9 +83,15 @@ export default function Dashboard() {
           color="green"
         />
         <StatCard
-          title="Memory Usage"
+          title="Nodes"
+          value={onlineNodes}
+          subtitle={`of ${nodes.length} registered`}
+          color="amber"
+        />
+        <StatCard
+          title="Memory"
           value={system?.memUsedPercent ? `${system.memUsedPercent}%` : "—"}
-          subtitle={`Load avg: ${system?.loadAvg?.[0]?.toFixed(2) || "—"}`}
+          subtitle={`Load: ${system?.loadAvg?.[0]?.toFixed(2) || "—"}`}
           color={parseFloat(system?.memUsedPercent) > 80 ? "red" : "amber"}
         />
       </div>

@@ -1,49 +1,86 @@
+import { useState } from "react";
 import { useApi } from "../components/useApi";
 import StatCard from "../components/StatCard";
 
 export default function Nodes() {
-  const { data: nodesData, loading } = useApi("/api/nodes", 8000);
+  const { data: nodesData, loading, refetch } = useApi("/api/nodes", 8000);
   const { data: netInfo } = useApi("/api/net_info", 10000);
   const { data: system } = useApi("/api/system", 5000);
+  const { data: selectData, refetch: refetchSelect } = useApi("/api/nodes/select", 15000);
+  const { data: poolData } = useApi("/api/nodes/pool/stats", 0);
+
+  const [selectedNode, setSelectedNode] = useState(null);
 
   const nodes = nodesData?.nodes || [];
   const online = nodes.filter((n) => n.status === "online").length;
   const offline = nodes.filter((n) => n.status === "offline").length;
+  const unknown = nodes.filter((n) => n.status === "unknown").length;
+
+  const handleSelectStrategy = async (strategy) => {
+    try {
+      const res = await fetch(`/api/nodes/select?strategy=${strategy}`);
+      const data = await res.json();
+      if (data.node) {
+        setSelectedNode(data.node);
+      }
+      refetchSelect();
+    } catch (err) {
+      console.error("Failed to select node:", err);
+    }
+  };
 
   return (
     <div>
       <div className="mb-6">
         <h2 className="text-2xl font-bold">Nodes</h2>
         <p className="text-sm text-slate-400">
-          Network topology and node health
+          Network topology, node health, and fleet management
         </p>
       </div>
 
       {/* ── Summary stats ───────────────────────── */}
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Total Nodes"
-          value={nodes.length || "—"}
-          color="sky"
-        />
-        <StatCard
-          title="Online"
-          value={online}
-          color="green"
-        />
-        <StatCard
-          title="Offline"
-          value={offline}
-          color={offline > 0 ? "red" : "green"}
-        />
-        <StatCard
-          title="Connected Peers"
-          value={netInfo?.nPeers ?? "—"}
-          color="purple"
-        />
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <StatCard title="Total" value={nodes.length || "—"} color="sky" />
+        <StatCard title="Online" value={online} color="green" />
+        <StatCard title="Offline" value={offline} color={offline > 0 ? "red" : "green"} />
+        <StatCard title="Unknown" value={unknown} color="amber" />
+        <StatCard title="Peers" value={netInfo?.nPeers ?? "—"} color="purple" />
       </div>
 
-      {/* ── Node list ───────────────────────────── */}
+      {/* ── Node selector ───────────────────────── */}
+      <div className="card mb-6">
+        <h3 className="mb-3 text-sm font-medium text-sky-400">Node Selector</h3>
+        <div className="flex flex-wrap items-center gap-3">
+          {["lowest-latency", "round-robin", "random"].map((strategy) => (
+            <button
+              key={strategy}
+              onClick={() => handleSelectStrategy(strategy)}
+              className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs font-medium text-slate-300 hover:border-sky-500 hover:text-sky-400"
+            >
+              {strategy}
+            </button>
+          ))}
+          {selectedNode && (
+            <span className="ml-4 text-sm">
+              Selected: <span className="font-medium text-sky-400">{selectedNode.moniker}</span>
+              <span className="badge-green ml-2">{selectedNode.status}</span>
+            </span>
+          )}
+          {selectData?.node && !selectedNode && (
+            <span className="ml-4 text-sm text-slate-400">
+              Auto: <span className="font-medium">{selectData.node.moniker}</span>
+              <span className="ml-2 text-xs">({selectData.strategy})</span>
+            </span>
+          )}
+        </div>
+        {poolData && (
+          <p className="mt-2 text-xs text-slate-500">
+            Connection pool: {poolData.size} active connections
+          </p>
+        )}
+      </div>
+
+      {/* ── Node fleet grid ─────────────────────── */}
       <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {loading ? (
           <div className="card col-span-full py-12 text-center text-slate-500">
@@ -51,28 +88,39 @@ export default function Nodes() {
           </div>
         ) : nodes.length === 0 ? (
           <div className="card col-span-full py-12 text-center text-slate-500">
-            No nodes discovered. Set <code>KNOWN_NODES</code> in your
-            environment or add Tailscale peers.
+            No registered validators. Visit{" "}
+            <a href="/registry" className="text-sky-400 hover:underline">Registry</a>{" "}
+            to add nodes.
           </div>
         ) : (
-          nodes.map((node, i) => (
-            <div key={i} className="card-hover">
+          nodes.map((node) => (
+            <div
+              key={node.node_id}
+              className={`card-hover cursor-pointer ${selectedNode?.node_id === node.node_id ? "ring-2 ring-sky-500" : ""}`}
+              onClick={() => setSelectedNode(node)}
+            >
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <span
                     className={`h-2.5 w-2.5 rounded-full ${
                       node.status === "online"
                         ? "bg-emerald-400"
-                        : "bg-red-500"
+                        : node.status === "offline"
+                        ? "bg-red-500"
+                        : "bg-yellow-500"
                     }`}
                   />
                   <span className="font-medium">
-                    {node.moniker || node.host}
+                    {node.moniker || node.node_id}
                   </span>
                 </div>
                 <span
                   className={
-                    node.status === "online" ? "badge-green" : "badge-red"
+                    node.status === "online"
+                      ? "badge-green"
+                      : node.status === "offline"
+                      ? "badge-red"
+                      : "badge-yellow"
                   }
                 >
                   {node.status}
@@ -80,14 +128,12 @@ export default function Nodes() {
               </div>
 
               <div className="space-y-1.5 text-sm">
-                <Row label="Host" value={node.host} />
-                {node.nodeId && (
-                  <Row label="Node ID" value={node.nodeId} mono />
-                )}
-                {node.blockHeight && (
+                <Row label="Node ID" value={node.node_id} mono />
+                <Row label="Endpoint" value={`${node.public_endpoint}:${node.rpc_port}`} />
+                {node.block_height > 0 && (
                   <Row
                     label="Height"
-                    value={parseInt(node.blockHeight).toLocaleString()}
+                    value={node.block_height.toLocaleString()}
                   />
                 )}
                 {node.catching_up !== undefined && (
@@ -96,7 +142,11 @@ export default function Nodes() {
                     value={node.catching_up ? "Catching up..." : "Synced"}
                   />
                 )}
-                <Row label="Latency" value={`${node.latency}ms`} />
+                {node.latency_ms > 0 && (
+                  <Row label="Latency" value={`${node.latency_ms}ms`} />
+                )}
+                {node.version && <Row label="Version" value={node.version} />}
+                {node.last_seen && <Row label="Last seen" value={node.last_seen} />}
               </div>
             </div>
           ))
@@ -113,23 +163,11 @@ export default function Nodes() {
             <Row label="Hostname" value={system.hostname} />
             <Row label="Platform" value={system.platform} />
             <Row label="CPUs" value={system.cpuCount} />
-            <Row
-              label="Uptime"
-              value={`${(system.uptime / 3600).toFixed(1)}h`}
-            />
+            <Row label="Uptime" value={`${(system.uptime / 3600).toFixed(1)}h`} />
             <Row label="Memory" value={`${system.memUsedPercent}% used`} />
-            <Row
-              label="Load (1m)"
-              value={system.loadAvg?.[0]?.toFixed(2)}
-            />
-            <Row
-              label="Load (5m)"
-              value={system.loadAvg?.[1]?.toFixed(2)}
-            />
-            <Row
-              label="Load (15m)"
-              value={system.loadAvg?.[2]?.toFixed(2)}
-            />
+            <Row label="Load (1m)" value={system.loadAvg?.[0]?.toFixed(2)} />
+            <Row label="Load (5m)" value={system.loadAvg?.[1]?.toFixed(2)} />
+            <Row label="Load (15m)" value={system.loadAvg?.[2]?.toFixed(2)} />
           </div>
         </div>
       )}

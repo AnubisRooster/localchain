@@ -1,0 +1,228 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop, "feature/*"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: "20"
+  GO_VERSION: "1.23"
+
+jobs:
+  lint-and-test-backend:
+    name: Backend Lint & Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dashboard/backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: dashboard/backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+        env:
+          NODE_ENV: test
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-backend
+          path: dashboard/backend/coverage/
+          retention-days: 7
+
+  lint-and-test-frontend:
+    name: Frontend Lint & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dashboard/frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: dashboard/frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run build
+        run: npm run build
+
+  build-chain:
+    name: Build Chain Binary
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: chain/go.sum
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('chain/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Build localchaind
+        working-directory: chain
+        run: go build -o ../localchaind ./cmd/localchaind
+
+      - name: Verify binary
+        run: ./localchaind version
+
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: [lint-and-test-backend, lint-and-test-frontend]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build API image
+        uses: docker/build-push-action@v5
+        with:
+          context: dashboard/backend
+          file: docker/api-gateway/Dockerfile
+          push: false
+          load: true
+          tags: localchain-api:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build Dashboard image
+        uses: docker/build-push-action@v5
+        with:
+          context: dashboard/frontend
+          file: docker/dashboard/Dockerfile
+          push: false
+          load: true
+          tags: localchain-dashboard:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build Validator image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/validator/Dockerfile
+          push: false
+          load: true
+          tags: localchain-validator:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner (backend)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: "fs"
+          scan-ref: "dashboard/backend"
+          format: "sarif"
+          output: "trivy-backend-results.sarif"
+
+      - name: Upload Trivy results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: "trivy-backend-results.sarif"
+
+  e2e-test:
+    name: E2E Integration Test
+    runs-on: ubuntu-latest
+    needs: [build-chain, docker-build]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Docker Compose
+        run: |
+          docker compose version
+
+      - name: Start testnet
+        run: make testnet-up
+        env:
+          COMPOSE_PROJECT_NAME: ci-test
+
+      - name: Wait for services
+        run: |
+          echo "Waiting for services to start..."
+          sleep 30
+
+      - name: Health check - Chain
+        run: |
+          for i in {1..30}; do
+            if curl -sf http://localhost:26657/status > /dev/null; then
+              echo "Chain is healthy"
+              exit 0
+            fi
+            echo "Attempt $i: Chain not ready yet..."
+            sleep 5
+          done
+          echo "Chain failed to start"
+          docker compose -f docker/docker-compose.yml logs validator-1
+          exit 1
+
+      - name: Health check - API
+        run: |
+          for i in {1..20}; do
+            if curl -sf http://localhost:4000/health > /dev/null; then
+              echo "API is healthy"
+              exit 0
+            fi
+            echo "Attempt $i: API not ready yet..."
+            sleep 5
+          done
+          echo "API failed to start"
+          docker compose -f docker/docker-compose.yml logs api-gateway
+          exit 1
+
+      - name: Run API smoke tests
+        run: |
+          echo "Testing /health..."
+          curl -sf http://localhost:4000/health | jq .
+
+          echo "Testing /api/blocks/latest..."
+          curl -sf http://localhost:4000/api/blocks/latest | jq .
+
+          echo "Testing /api/validators..."
+          curl -sf http://localhost:4000/api/validators | jq .
+
+          echo "Testing /api/metrics..."
+          curl -sf http://localhost:4000/api/metrics | head -20
+
+          echo "All smoke tests passed"
+
+      - name: Cleanup
+        if: always()
+        run: make testnet-down

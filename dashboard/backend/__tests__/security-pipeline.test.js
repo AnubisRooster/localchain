@@ -3,6 +3,21 @@ const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
 
+jest.mock("axios", () => {
+  const cosmosMock = { get: jest.fn() };
+  const tendermintMock = { get: jest.fn() };
+  let callCount = 0;
+  return {
+    create: jest.fn(() => {
+      callCount++;
+      return callCount === 1 ? cosmosMock : tendermintMock;
+    }),
+    get: jest.fn(),
+    __cosmosMock: cosmosMock,
+    __tendermintMock: tendermintMock,
+  };
+});
+
 let app;
 
 beforeAll(() => {
@@ -15,21 +30,6 @@ beforeAll(() => {
   const repDb = process.env.REPUTATION_DB_PATH;
   [auditDb, repDb, auditDb + "-wal", auditDb + "-shm", repDb + "-wal", repDb + "-shm"].forEach((f) => {
     if (fs.existsSync(f)) fs.unlinkSync(f);
-  });
-
-  jest.mock("axios", () => {
-    const cosmosMock = { get: jest.fn() };
-    const tendermintMock = { get: jest.fn() };
-    let callCount = 0;
-    return {
-      create: jest.fn(() => {
-        callCount++;
-        return callCount === 1 ? cosmosMock : tendermintMock;
-      }),
-      get: jest.fn(),
-      __cosmosMock: cosmosMock,
-      __tendermintMock: tendermintMock,
-    };
   });
 
   const server = require("../server");

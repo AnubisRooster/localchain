@@ -37,6 +37,14 @@ const config = {
 
   // Known nodes – populated at runtime by Tailscale discovery
   knownNodes: (process.env.KNOWN_NODES || "").split(",").filter(Boolean),
+
+  // UPnP auto-config
+  upnpEnabled: process.env.UPNP_ENABLED === "1" || process.env.UPNP_ENABLED === "true",
+  upnpDiscoveryInterval: parseInt(process.env.UPNP_DISCOVERY_INTERVAL_MS, 10) || 60000,
+  upnpPortMapTtl: parseInt(process.env.UPNP_PORT_MAP_TTL, 10) || 86400,
+  p2pPort: parseInt(process.env.P2P_PORT, 10) || 26656,
+  rpcPort: parseInt(process.env.RPC_PORT, 10) || 26657,
+  restPort: parseInt(process.env.REST_PORT, 10) || 1317,
 };
 
 module.exports = config;

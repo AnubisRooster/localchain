@@ -1,0 +1,105 @@
+groups:
+  - name: localchain_alerts
+    rules:
+      - alert: NodeOffline
+        expr: localchain_node_online == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "All validator nodes are offline"
+          description: "No online nodes detected in the validator registry for over 1 minute."
+
+      - alert: HighErrorRate
+        expr: |
+          (
+            rate(localchain_api_errors_total[5m]) /
+            rate(localchain_api_requests_total[5m])
+          ) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High API error rate"
+          description: "API error rate is above 10% for the last 5 minutes."
+
+      - alert: ChainStopped
+        expr: |
+          increase(localchain_block_height[5m]) == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Chain not producing blocks"
+          description: "No new blocks produced in the last 5 minutes."
+
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.95, rate(localchain_request_duration_seconds_bucket[5m])) > 2
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High API request latency"
+          description: "95th percentile request latency is above 2 seconds."
+
+      - alert: MemoryPressure
+        expr: localchain_system_mem_used_percent > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High system memory usage"
+          description: "System memory usage is above 85%."
+
+      - alert: NodeCatchUp
+        expr: localchain_catching_up == 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Node still catching up"
+          description: "Node has been catching up for over 10 minutes."
+
+      - alert: HighQuarantineRate
+        expr: |
+          increase(localchain_quarantine_total[15m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High quarantine rate"
+          description: "More than 10 items quarantined in the last 15 minutes."
+
+      - alert: RateLimitExceeded
+        expr: |
+          increase(localchain_rate_limit_exceeded_total[5m]) > 20
+        for: 2m
+        labels:
+          severity: info
+        annotations:
+          summary: "Frequent rate limit exceeded"
+          description: "Rate limit exceeded more than 20 times in 5 minutes."
+
+      - alert: UPnpMappingFailed
+        expr: |
+          localchain_upnp_mappings_active < 3
+        for: 5m
+        labels:
+          severity: info
+        annotations:
+          summary: "Few UPnP mappings active"
+          description: "Less than 3 UPnP port mappings are active."
+
+      - alert: TransactionFailureRate
+        expr: |
+          (
+            rate(localchain_tx_broadcast_failed_total[5m]) /
+            rate(localchain_tx_broadcast_total[5m])
+          ) > 0.2
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High transaction failure rate"
+          description: "Transaction broadcast failure rate is above 20%."

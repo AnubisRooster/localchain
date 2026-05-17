@@ -63,3 +63,5 @@ Thumbs.db
 # Generated files
 *.pptx
 coverage/
+backups/
+.env

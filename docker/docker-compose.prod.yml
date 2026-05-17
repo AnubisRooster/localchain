@@ -1,0 +1,215 @@
+# ─────────────────────────────────────────────────────────────
+# LocalChain — Production Docker Compose
+#
+# Usage:
+#   make prod-up        # Start production stack
+#   make prod-down      # Stop production stack
+#   make prod-logs      # Tail production logs
+#   make prod-backup    # Backup all data
+#   make prod-restore   # Restore from backup
+#
+# Features:
+#   - Health checks with restart policies
+#   - Resource limits (CPU, memory)
+#   - Structured JSON logging with rotation
+#   - Non-root containers where possible
+#   - Persistent volumes with backup support
+#   - TLS termination ready
+#   - Prometheus/Grafana monitoring
+# ─────────────────────────────────────────────────────────────
+
+x-common-logging: &common-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+    tag: "{{.Name}}"
+
+x-common-restart: &common-restart
+  restart: unless-stopped
+
+services:
+  # ── Validator ─────────────────────────────────────────────
+  validator:
+    build:
+      context: ..
+      dockerfile: docker/validator/Dockerfile
+    container_name: lc-validator
+    volumes:
+      - validator-data:/root/.localchaind
+      - ./genesis/genesis.json:/genesis/genesis.json:ro
+      - ./genesis/validator/priv_validator_key.json:/keys/priv_validator_key.json:ro
+    environment:
+      - NODE_NAME=validator
+      - MONIKER=validator
+      - SEEDS=${SEEDS:-}
+      - PERSISTENT_PEERS=${PERSISTENT_PEERS:-}
+    ports:
+      - "${P2P_PORT:-26656}:26656"
+      - "${RPC_PORT:-26657}:26657"
+      - "${REST_PORT:-1317}:1317"
+      - "${PROM_PORT:-26660}:26660"
+    networks:
+      - localchain
+    <<: *common-restart
+    logging: *common-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "${VALIDATOR_CPU:-2.0}"
+          memory: "${VALIDATOR_MEM:-2G}"
+        reservations:
+          cpus: "0.5"
+          memory: "512M"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:26657/status"]
+      interval: 15s
+      timeout: 10s
+      retries: 15
+      start_period: 60s
+
+  # ── API Gateway ───────────────────────────────────────────
+  api-gateway:
+    build:
+      context: ../dashboard/backend
+      dockerfile: ../../docker/api-gateway/Dockerfile
+    container_name: lc-api
+    ports:
+      - "${API_PORT:-4000}:4000"
+    environment:
+      - API_PORT=4000
+      - API_HOST=0.0.0.0
+      - COSMOS_REST=http://validator:1317
+      - TENDERMINT_RPC=http://validator:26657
+      - KNOWN_NODES=validator
+      - NODE_POLL_INTERVAL_MS=${NODE_POLL_INTERVAL_MS:-30000}
+      - AUTH_DB_PATH=/data/auth.db
+      - REGISTRY_DB_PATH=/data/registry.db
+      - TENANT_DB_PATH=/data/tenants.db
+      - REPUTATION_DB_PATH=/data/reputation.db
+      - AUDIT_DB_PATH=/data/audit.db
+      - QUARANTINE_DB_PATH=/data/quarantine.db
+      - TLS_ENABLED=${TLS_ENABLED:-0}
+      - TLS_CERT_PATH=${TLS_CERT_PATH:-}
+      - TLS_KEY_PATH=${TLS_KEY_PATH:-}
+      - UPNP_ENABLED=${UPNP_ENABLED:-0}
+      - VALIDATOR_SHARED_SECRET=${VALIDATOR_SHARED_SECRET:-}
+      - TENANT_REQUIRED=${TENANT_REQUIRED:-0}
+    volumes:
+      - api-data:/data
+    networks:
+      - localchain
+    <<: *common-restart
+    logging: *common-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "${API_CPU:-1.0}"
+          memory: "${API_MEM:-1G}"
+        reservations:
+          cpus: "0.25"
+          memory: "256M"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+    depends_on:
+      validator:
+        condition: service_healthy
+
+  # ── Dashboard Frontend ────────────────────────────────────
+  dashboard:
+    build:
+      context: ../dashboard/frontend
+      dockerfile: ../../docker/dashboard/Dockerfile
+    container_name: lc-dashboard
+    ports:
+      - "${DASHBOARD_PORT:-3000}:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+    networks:
+      - localchain
+    <<: *common-restart
+    logging: *common-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "${DASHBOARD_CPU:-0.5}"
+          memory: "${DASHBOARD_MEM:-512M}"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      - api-gateway
+
+  # ── Prometheus ────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: lc-prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/alerts:/etc/prometheus/alerts:ro
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=${PROM_RETENTION:-7d}"
+      - "--web.enable-lifecycle"
+    networks:
+      - localchain
+    <<: *common-restart
+    logging: *common-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "512M"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # ── Grafana ───────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:latest
+    container_name: lc-grafana
+    ports:
+      - "${GRAFANA_PORT:-3001}:3000"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://localhost:${GRAFANA_PORT:-3001}
+    networks:
+      - localchain
+    <<: *common-restart
+    logging: *common-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "256M"
+    depends_on:
+      - prometheus
+
+networks:
+  localchain:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+volumes:
+  validator-data:
+  api-data:
+  prometheus-data:
+  grafana-data:

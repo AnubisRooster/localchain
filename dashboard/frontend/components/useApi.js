@@ -37,4 +37,46 @@ export function useApi(path, intervalMs = 5000) {
   return { data, error, loading, refetch: fetchData };
 }
 
+/**
+ * Custom hook for mutations (POST, PUT, DELETE).
+ * Returns { mutate, data, error, loading, reset }
+ */
+export function useApiMutation() {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const mutate = useCallback(async (method, path, body) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await api.request({ method, url: path, data: body });
+      setData(res.data);
+      return res.data;
+    } catch (err) {
+      setError(err.response?.data?.error || err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const reset = useCallback(() => {
+    setData(null);
+    setError(null);
+    setLoading(false);
+  }, []);
+
+  return {
+    mutate,
+    post: (path, body) => mutate("POST", path, body),
+    put: (path, body) => mutate("PUT", path, body),
+    del: (path) => mutate("DELETE", path),
+    data,
+    error,
+    loading,
+    reset,
+  };
+}
+
 export { api, API_BASE };

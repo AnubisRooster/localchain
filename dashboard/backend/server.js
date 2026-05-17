@@ -19,6 +19,13 @@ const { recordSubmissionLimiter, apiRequestLimiter, txQueryLimiter, createAddres
 const { reputationMiddleware, updateReputation, getReputation } = require("./services/reputation");
 const { contentAnalysisMiddleware } = require("./services/content-analyzer");
 const { quarantineMiddleware, queryQuarantine, getQuarantineCount, reviewEntry, deleteEntry, getQuarantineStats } = require("./services/quarantine");
+const { registerNode, getAllNodes, getNodeById, deleteNodeById, getStats: getRegistryStats, pollAllNodes } = require("./services/registry");
+const { selectNode, getNodeById: getNodeFromPool, getTendermintClient, getRestClient, routeRequest, clearPool, getPoolStats } = require("./services/node-selector");
+const { broadcastRecord: broadcastRecordRest, resetClient: resetBroadcastClient, getSignerAddress } = require("./services/broadcast");
+const { createKey, validateKey, revokeKey, listKeys, getKey, getTlsConfig, requireAuth, validateSharedSecret } = require("./services/auth");
+const { initGateway, mapAllPorts, unmapAllPorts, startDiscoveryLoop, stopDiscoveryLoop, getStatus: getUpnpStatus, runDiscovery } = require("./services/upnp");
+const { createTenant, getTenant, listTenants, updateTenant, suspendTenant, getTenantUsage, getGlobalStats, tenantMiddleware } = require("./services/tenant");
+const metrics = require("./services/metrics");
 
 const app = express();
 
@@ -27,43 +34,56 @@ app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 
 app.use(apiRequestLimiter);
+app.use(requireAuth);
+app.use(tenantMiddleware);
+app.use(metrics.httpMiddleware);
 
 const cosmos = axios.create({ baseURL: config.cosmosRest, timeout: 8000 });
 const tendermint = axios.create({ baseURL: config.tendermintRpc, timeout: 8000 });
 
-// ── In-memory metrics for Prometheus scraping ───────────────
-let metrics = { requestCount: 0, errorCount: 0, lastBlockHeight: 0 };
+function getClientForRequest(req, type = "tendermint") {
+  const nodeId = req.query.node;
+  if (!nodeId) return type === "tendermint" ? tendermint : cosmos;
 
-// ──────────────────────────────────────────────────────────
-// Middleware
-// ──────────────────────────────────────────────────────────
-app.use((req, _res, next) => {
-  metrics.requestCount++;
-  next();
-});
+  const node = getNodeFromPool(nodeId);
+  if (!node) return null;
+
+  return type === "tendermint" ? getTendermintClient(node) : getRestClient(node);
+}
 
 // ══════════════════════════════════════════════════════════
 // Health
 // ══════════════════════════════════════════════════════════
-app.get("/health", async (_req, res) => {
+app.get("/health", async (req, res) => {
   try {
+    const client = getClientForRequest(req, "tendermint");
+    if (!client) {
+      return res.status(404).json({ status: "error", message: `Node '${req.query.node}' not found` });
+    }
+
     const start = Date.now();
-    const status = await tendermint.get("/status");
+    const status = await client.get("/status");
     const latency = Date.now() - start;
     const info = status.data.result;
 
-    metrics.lastBlockHeight = parseInt(info.sync_info.latest_block_height, 10);
+    metrics.updateChainMetrics({
+      blockHeight: parseInt(info.sync_info.latest_block_height, 10),
+      peers: parseInt(info.node_info.id ? 1 : 0, 10),
+      catchingUp: info.sync_info.catching_up,
+    });
+
+    metrics.observeHistogram("localchain_node_latency_seconds", latency / 1000);
 
     res.json({
       status: "ok",
       chainId: info.node_info.network,
-      blockHeight: metrics.lastBlockHeight,
+      blockHeight: parseInt(info.sync_info.latest_block_height, 10),
       peers: parseInt(info.node_info.id ? 1 : 0, 10),
       latency,
       catching_up: info.sync_info.catching_up,
+      node: req.query.node || "localhost",
     });
   } catch (err) {
-    metrics.errorCount++;
     res.status(503).json({ status: "error", message: err.message });
   }
 });
@@ -186,8 +206,13 @@ function parseRecordData(raw) {
 
 app.get("/api/records", sanitizeQuery, validateRecordsQuery, async (req, res) => {
   try {
+    const client = getClientForRequest(req, "rest");
+    if (!client) {
+      return res.status(404).json({ error: `Node '${req.query.node}' not found`, records: [], total: 0 });
+    }
+
     const query = req.validatedQuery || req.query;
-    const response = await cosmos.get("/cosmos/tx/v1beta1/txs", {
+    const response = await client.get("/cosmos/tx/v1beta1/txs", {
       params: {
         query: "message.action='/localchain.records.v1.MsgCreateRecord'",
         order_by: "ORDER_BY_DESC",
@@ -247,7 +272,6 @@ app.get("/api/records", sanitizeQuery, validateRecordsQuery, async (req, res) =>
 
     res.json({ records, total: records.length });
   } catch (err) {
-    metrics.errorCount++;
     res.json({ records: [], total: 0, note: err.message });
   }
 });
@@ -256,7 +280,7 @@ app.get("/api/records", sanitizeQuery, validateRecordsQuery, async (req, res) =>
 // Records – submit a new record transaction
 // ══════════════════════════════════════════════════════════
 
-function broadcastRecord(jsonData) {
+function broadcastRecordCli(jsonData) {
   return new Promise((resolve, reject) => {
     const args = [
       "tx", "records", "create-record", jsonData,
@@ -279,6 +303,13 @@ function broadcastRecord(jsonData) {
       }
     });
   });
+}
+
+async function broadcastRecord(jsonData, nodeId) {
+  if (process.env.USE_CLI_BROADCAST === "1") {
+    return broadcastRecordCli(jsonData);
+  }
+  return broadcastRecordRest(jsonData, nodeId);
 }
 
 const addressLimiter = createAddressBasedLimiter({ windowMs: 60000, max: 10 });
@@ -313,9 +344,11 @@ app.post(
         timestamp: Date.now(),
       });
 
-      const result = await broadcastRecord(payload);
+      const result = await broadcastRecord(payload, req.query.node);
+      metrics.incCounter("localchain_tx_broadcast_total");
 
       if (result.code && result.code !== 0) {
+        metrics.incCounter("localchain_tx_broadcast_failed_total");
         const address = req.body?.creator || req.ip;
         if (address) {
           updateReputation(address, "failedTx", "Transaction rejected by chain");
@@ -326,6 +359,8 @@ app.post(
           rawLog: result.raw_log,
         });
       }
+
+      metrics.incCounter("localchain_tx_broadcast_success_total");
 
       const address = req.body?.creator || req.ip;
       if (address) {
@@ -341,7 +376,6 @@ app.post(
         contentAnalysis: req.contentAnalysis || null,
       });
     } catch (err) {
-      metrics.errorCount++;
       res.status(500).json({ error: "Transaction broadcast failed", details: err.message });
     }
   }
@@ -350,11 +384,16 @@ app.post(
 // ══════════════════════════════════════════════════════════
 // Blocks
 // ══════════════════════════════════════════════════════════
-app.get("/api/blocks/latest", async (_req, res) => {
+app.get("/api/blocks/latest", async (req, res) => {
   try {
+    const client = getClientForRequest(req, "tendermint");
+    if (!client) {
+      return res.status(404).json({ error: `Node '${req.query.node}' not found` });
+    }
+
     const [latest, blockchain] = await Promise.all([
-      tendermint.get("/block"),
-      tendermint.get("/blockchain?minHeight=1&maxHeight=20"),
+      client.get("/block"),
+      client.get("/blockchain?minHeight=1&maxHeight=20"),
     ]);
 
     const latestBlock = latest.data.result.block;
@@ -375,15 +414,19 @@ app.get("/api/blocks/latest", async (_req, res) => {
       })),
     });
   } catch (err) {
-    metrics.errorCount++;
     res.status(502).json({ error: err.message });
   }
 });
 
 app.get("/api/block/:height", async (req, res) => {
   try {
+    const client = getClientForRequest(req, "tendermint");
+    if (!client) {
+      return res.status(404).json({ error: `Node '${req.query.node}' not found` });
+    }
+
     const { height } = req.params;
-    const response = await tendermint.get(`/block?height=${height}`);
+    const response = await client.get(`/block?height=${height}`);
     const block = response.data.result.block;
 
     res.json({
@@ -396,7 +439,6 @@ app.get("/api/block/:height", async (req, res) => {
       lastBlockHash: block.header.last_block_id.hash,
     });
   } catch (err) {
-    metrics.errorCount++;
     res.status(502).json({ error: err.message });
   }
 });
@@ -406,23 +448,32 @@ app.get("/api/block/:height", async (req, res) => {
 // ══════════════════════════════════════════════════════════
 app.get("/api/tx/:hash", txQueryLimiter, async (req, res) => {
   try {
+    const client = getClientForRequest(req, "tendermint");
+    if (!client) {
+      return res.status(404).json({ error: `Node '${req.query.node}' not found` });
+    }
+
     const { hash } = req.params;
-    const response = await tendermint.get(`/tx?hash=0x${hash}`);
+    const response = await client.get(`/tx?hash=0x${hash}`);
     res.json(response.data.result);
   } catch (err) {
-    metrics.errorCount++;
     res.status(502).json({ error: err.message });
   }
 });
 
 app.get("/api/txs", txQueryLimiter, validateTxQuery, async (req, res) => {
   try {
+    const client = getClientForRequest(req, "tendermint");
+    if (!client) {
+      return res.status(404).json({ error: `Node '${req.query.node}' not found`, txs: [], total: 0 });
+    }
+
     const q = req.validatedTxQuery || req.query;
     const page = q.page || 1;
     const perPage = q.per_page || 30;
     const query = q.query || "tx.height>0";
 
-    const response = await tendermint.get("/tx_search", {
+    const response = await client.get("/tx_search", {
       params: { query: `"${query}"`, page, per_page: perPage, order_by: '"desc"' },
     });
 
@@ -432,7 +483,6 @@ app.get("/api/txs", txQueryLimiter, validateTxQuery, async (req, res) => {
       total: result.total_count,
     });
   } catch (err) {
-    metrics.errorCount++;
     res.json({ txs: [], total: 0, note: err.message });
   }
 });
@@ -440,9 +490,14 @@ app.get("/api/txs", txQueryLimiter, validateTxQuery, async (req, res) => {
 // ══════════════════════════════════════════════════════════
 // Validators
 // ══════════════════════════════════════════════════════════
-app.get("/api/validators", async (_req, res) => {
+app.get("/api/validators", async (req, res) => {
   try {
-    const response = await tendermint.get("/validators");
+    const client = getClientForRequest(req, "tendermint");
+    if (!client) {
+      return res.status(404).json({ error: `Node '${req.query.node}' not found` });
+    }
+
+    const response = await client.get("/validators");
     const result = response.data.result;
 
     res.json({
@@ -454,15 +509,264 @@ app.get("/api/validators", async (_req, res) => {
       })),
     });
   } catch (err) {
-    metrics.errorCount++;
     res.status(502).json({ error: err.message });
   }
 });
 
 // ══════════════════════════════════════════════════════════
-// Nodes – aggregate health from known Tailscale peers
+// Auth – API key management
 // ══════════════════════════════════════════════════════════
+app.post("/api/auth/keys", (req, res) => {
+  const { label, expiresInDays, rateLimit, rateWindow, permissions } = req.body;
+
+  try {
+    const result = createKey({
+      label: label || "api-key",
+      expiresInDays: expiresInDays ? parseInt(expiresInDays, 10) : null,
+      rateLimit: rateLimit ? parseInt(rateLimit, 10) : 1000,
+      rateWindow: rateWindow ? parseInt(rateWindow, 10) : 3600,
+      permissions,
+      createdBy: req.ip,
+    });
+    metrics.incCounter("localchain_api_keys_created_total");
+    res.status(201).json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/auth/keys", (_req, res) => {
+  res.json({ keys: listKeys() });
+});
+
+app.get("/api/auth/keys/:id", (req, res) => {
+  const key = getKey(parseInt(req.params.id, 10));
+  if (!key) {
+    return res.status(404).json({ error: "Key not found" });
+  }
+  res.json(key);
+});
+
+app.delete("/api/auth/keys/:id", (req, res) => {
+  const result = revokeKey(parseInt(req.params.id, 10));
+  if (!result.success) {
+    return res.status(404).json({ error: "Key not found" });
+  }
+  metrics.incCounter("localchain_api_keys_revoked_total");
+  res.json(result);
+});
+
+app.get("/api/auth/validate", (req, res) => {
+  const key = req.headers["x-api-key"];
+  if (!key) {
+    return res.status(400).json({ error: "X-API-Key header required" });
+  }
+  const result = validateKey(key);
+  res.json(result);
+});
+
+// ══════════════════════════════════════════════════════════
+// UPnP – auto-discovery and port mapping
+// ══════════════════════════════════════════════════════════
+app.get("/api/upnp/status", async (_req, res) => {
+  res.json(await getUpnpStatus());
+});
+
+app.post("/api/upnp/discover", async (_req, res) => {
+  try {
+    const result = await runDiscovery();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/upnp/map", async (_req, res) => {
+  try {
+    const result = await mapAllPorts();
+    res.json({ success: true, mappings: result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/upnp/unmap", async (_req, res) => {
+  try {
+    await unmapAllPorts();
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ══════════════════════════════════════════════════════════
+// Tenants – multi-tenant management
+// ══════════════════════════════════════════════════════════
+app.post("/api/tenants", (req, res) => {
+  const { name, description, maxNodes, maxApiKeys, rateLimit, rateWindow, metadata } = req.body;
+
+  if (!name) {
+    return res.status(400).json({ error: "name is required" });
+  }
+
+  try {
+    const tenant = createTenant({
+      name,
+      description,
+      maxNodes: maxNodes ? parseInt(maxNodes, 10) : undefined,
+      maxApiKeys: maxApiKeys ? parseInt(maxApiKeys, 10) : undefined,
+      rateLimit: rateLimit ? parseInt(rateLimit, 10) : undefined,
+      rateWindow: rateWindow ? parseInt(rateWindow, 10) : undefined,
+      metadata,
+    });
+    metrics.incCounter("localchain_tenants_created_total");
+    res.status(201).json(tenant);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/tenants", (_req, res) => {
+  res.json({ tenants: listTenants() });
+});
+
+app.get("/api/tenants/stats", (_req, res) => {
+  res.json(getGlobalStats());
+});
+
+app.get("/api/tenants/:tenantId", (req, res) => {
+  const tenant = getTenant(req.params.tenantId);
+  if (!tenant) {
+    return res.status(404).json({ error: "Tenant not found" });
+  }
+  res.json(tenant);
+});
+
+app.put("/api/tenants/:tenantId", (req, res) => {
+  const tenant = updateTenant(req.params.tenantId, req.body);
+  if (!tenant) {
+    return res.status(404).json({ error: "Tenant not found" });
+  }
+  res.json(tenant);
+});
+
+app.delete("/api/tenants/:tenantId", (req, res) => {
+  const result = suspendTenant(req.params.tenantId);
+  if (!result.success) {
+    return res.status(404).json({ error: "Tenant not found" });
+  }
+  res.json(result);
+});
+
+app.get("/api/tenants/:tenantId/usage", (req, res) => {
+  const tenant = getTenant(req.params.tenantId);
+  if (!tenant) {
+    return res.status(404).json({ error: "Tenant not found" });
+  }
+  const hours = req.query.hours ? parseInt(req.query.hours, 10) : 24;
+  res.json(getTenantUsage(req.params.tenantId, hours));
+});
+
+// ══════════════════════════════════════════════════════════
+// Validator Registry – self-service node registration
+// ══════════════════════════════════════════════════════════
+app.post("/api/nodes/register", validateSharedSecret, (req, res) => {
+  const { node_id, moniker, public_endpoint, rpc_port, rest_port, p2p_port, version, network } = req.body;
+
+  if (!node_id || !moniker || !public_endpoint) {
+    return res.status(400).json({ error: "node_id, moniker, and public_endpoint are required" });
+  }
+
+  try {
+    const result = registerNode({
+      node_id,
+      moniker,
+      public_endpoint,
+      rpc_port: parseInt(rpc_port, 10) || 26657,
+      rest_port: parseInt(rest_port, 10) || 1317,
+      p2p_port: parseInt(p2p_port, 10) || 26656,
+      version,
+      network,
+    });
+    metrics.incCounter("localchain_node_registrations_total");
+    res.status(201).json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get("/api/nodes", async (_req, res) => {
+  const registryNodes = getAllNodes();
+
+  const results = registryNodes.map((node) => ({
+    id: node.id,
+    node_id: node.node_id,
+    moniker: node.moniker,
+    public_endpoint: node.public_endpoint,
+    rpc_port: node.rpc_port,
+    rest_port: node.rest_port,
+    p2p_port: node.p2p_port,
+    status: node.status,
+    block_height: node.block_height,
+    catching_up: !!node.catching_up,
+    latency_ms: node.latency_ms,
+    version: node.version,
+    network: node.network,
+    registered_at: node.registered_at,
+    last_seen: node.last_seen,
+  }));
+
+  res.json({ nodes: results, total: results.length });
+});
+
+app.get("/api/nodes/stats", (_req, res) => {
+  res.json(getRegistryStats());
+});
+
+app.get("/api/nodes/select", (req, res) => {
+  const strategy = req.query.strategy || "lowest-latency";
+  const node = selectNode(strategy);
+  if (!node) {
+    return res.json({ node: null, message: "No online nodes available" });
+  }
+  res.json({ node, strategy });
+});
+
+app.get("/api/nodes/pool/stats", (_req, res) => {
+  res.json(getPoolStats());
+});
+
+app.get("/api/nodes/:nodeId", (req, res) => {
+  const node = getNodeById(req.params.nodeId);
+  if (!node) {
+    return res.status(404).json({ error: "Node not found" });
+  }
+  res.json(node);
+});
+
+app.delete("/api/nodes/:nodeId", (req, res) => {
+  const result = deleteNodeById(req.params.nodeId);
+  if (!result.success) {
+    return res.status(404).json({ error: "Node not found" });
+  }
+  metrics.incCounter("localchain_node_deregistrations_total");
+  clearPool();
+  resetBroadcastClient();
+  res.json(result);
+});
+
+app.get("/api/broadcast/status", (req, res) => {
+  res.json({
+    mode: process.env.USE_CLI_BROADCAST === "1" ? "cli" : "rest",
+    signerAddress: getSignerAddress() || null,
+    node: req.query.node || "auto",
+  });
+});
+
+// ══════════════════════════════════════════════════════════
+// Nodes – legacy aggregate health from known Tailscale peers
+// ══════════════════════════════════════════════════════════
+app.get("/api/nodes/legacy", async (_req, res) => {
   const nodes = config.knownNodes.length
     ? config.knownNodes
     : ["localhost"];
@@ -499,9 +803,14 @@ app.get("/api/nodes", async (_req, res) => {
 // ══════════════════════════════════════════════════════════
 // Net Info (peer details)
 // ══════════════════════════════════════════════════════════
-app.get("/api/net_info", async (_req, res) => {
+app.get("/api/net_info", async (req, res) => {
   try {
-    const response = await tendermint.get("/net_info");
+    const client = getClientForRequest(req, "tendermint");
+    if (!client) {
+      return res.status(404).json({ error: `Node '${req.query.node}' not found` });
+    }
+
+    const response = await client.get("/net_info");
     const result = response.data.result;
 
     res.json({
@@ -514,7 +823,6 @@ app.get("/api/net_info", async (_req, res) => {
       })),
     });
   } catch (err) {
-    metrics.errorCount++;
     res.status(502).json({ error: err.message });
   }
 });
@@ -541,34 +849,112 @@ app.get("/api/system", (_req, res) => {
 
 // Prometheus-compatible text metrics
 app.get("/api/metrics", (_req, res) => {
-  res.set("Content-Type", "text/plain");
-  res.send(
-    [
-      `# HELP localchain_api_requests_total Total API requests`,
-      `# TYPE localchain_api_requests_total counter`,
-      `localchain_api_requests_total ${metrics.requestCount}`,
-      `# HELP localchain_api_errors_total Total API errors`,
-      `# TYPE localchain_api_errors_total counter`,
-      `localchain_api_errors_total ${metrics.errorCount}`,
-      `# HELP localchain_last_block_height Last known block height`,
-      `# TYPE localchain_last_block_height gauge`,
-      `localchain_last_block_height ${metrics.lastBlockHeight}`,
-      `# HELP localchain_system_mem_used_percent System memory usage percent`,
-      `# TYPE localchain_system_mem_used_percent gauge`,
-      `localchain_system_mem_used_percent ${((1 - os.freemem() / os.totalmem()) * 100).toFixed(1)}`,
-    ].join("\n") + "\n"
-  );
+  res.set("Content-Type", "text/plain; version=0.0.4");
+  res.send(metrics.generatePrometheusText());
+});
+
+// JSON metrics summary for dashboard
+app.get("/api/metrics/summary", (_req, res) => {
+  res.json(metrics.getJsonSummary());
 });
 
 // ══════════════════════════════════════════════════════════
 // Start
 // ══════════════════════════════════════════════════════════
 if (require.main === module) {
-  app.listen(config.apiPort, config.apiHost, () => {
-    console.log(`✔ LocalChain API listening on http://${config.apiHost}:${config.apiPort}`);
-    console.log(`  → Cosmos REST : ${config.cosmosRest}`);
-    console.log(`  → Tendermint  : ${config.tendermintRpc}`);
-  });
+  const tlsConfig = getTlsConfig();
+
+  if (tlsConfig) {
+    const https = require("https");
+    https.createServer(tlsConfig, app).listen(config.apiPort, config.apiHost, () => {
+      console.log(`✔ LocalChain API (HTTPS) listening on https://${config.apiHost}:${config.apiPort}`);
+      console.log(`  → Cosmos REST : ${config.cosmosRest}`);
+      console.log(`  → Tendermint  : ${config.tendermintRpc}`);
+    });
+  } else {
+    app.listen(config.apiPort, config.apiHost, () => {
+      console.log(`✔ LocalChain API listening on http://${config.apiHost}:${config.apiPort}`);
+      console.log(`  → Cosmos REST : ${config.cosmosRest}`);
+      console.log(`  → Tendermint  : ${config.tendermintRpc}`);
+    });
+  }
+
+  // Background health poller – probe registered nodes every 30s
+  const POLL_INTERVAL_MS = parseInt(process.env.NODE_POLL_INTERVAL_MS, 10) || 30_000;
+  console.log(`  → Validator health poller: every ${POLL_INTERVAL_MS / 1000}s`);
+
+  async function pollRegistry() {
+    try {
+      const results = await pollAllNodes();
+      if (results.length > 0) {
+        const online = results.filter((r) => r.status === "online").length;
+        const offline = results.length - online;
+        console.log(`[registry-poll] ${online}/${results.length} nodes online`);
+        metrics.updateNodePoolMetrics({ total: results.length, online, offline });
+      }
+    } catch (err) {
+      console.error(`[registry-poll] Error: ${err.message}`);
+    }
+  }
+
+  // Initial poll after 5s, then recurring
+  setTimeout(() => {
+    pollRegistry();
+    setInterval(pollRegistry, POLL_INTERVAL_MS);
+  }, 5000);
+
+  // Background metrics updater – refresh chain/tenant metrics every 15s
+  async function refreshMetrics() {
+    try {
+      const status = await tendermint.get("/status");
+      const info = status.data.result;
+      metrics.updateChainMetrics({
+        blockHeight: parseInt(info.sync_info.latest_block_height, 10),
+        peers: parseInt(info.sync_info.latest_block_height, 10) > 0 ? 1 : 0,
+        catchingUp: info.sync_info.catching_up,
+      });
+    } catch {}
+
+    try {
+      const tenantStats = getGlobalStats();
+      metrics.updateTenantMetrics(tenantStats);
+    } catch {}
+  }
+
+  setTimeout(() => {
+    refreshMetrics();
+    setInterval(refreshMetrics, 15_000);
+  }, 8000);
+
+  // UPnP auto-config
+  if (config.upnpEnabled) {
+    console.log("  → UPnP auto-discovery: enabled");
+
+    (async () => {
+      const gwResult = await initGateway();
+      if (gwResult.success) {
+        console.log(`  → UPnP gateway: ${gwResult.gatewayType} (${gwResult.externalIp})`);
+        await mapAllPorts();
+        startDiscoveryLoop();
+      } else {
+        console.log(`  → UPnP: ${gwResult.reason} (discovery-only mode)`);
+        startDiscoveryLoop();
+      }
+    })();
+  }
 }
+
+// Cleanup on exit
+process.on("SIGTERM", () => {
+  stopDiscoveryLoop();
+  unmapAllPorts().catch(() => {});
+  process.exit(0);
+});
+
+process.on("SIGINT", () => {
+  stopDiscoveryLoop();
+  unmapAllPorts().catch(() => {});
+  process.exit(0);
+});
 
 module.exports = { app, metrics };
