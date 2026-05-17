@@ -6,10 +6,10 @@ const INJECTION_PATTERNS = [
   { name: "output_manipulation", regex: /(do not (mention|reveal|disclose|show)|keep (this|it) secret|hidden (output|response))/i, severity: "high" },
   { name: "extraction_attempt", regex: /(reveal your (instructions?|system prompt|initial prompt)|what are your (rules|instructions))/i, severity: "critical" },
   { name: "delimiter_abuse", regex: /(<\|end\|>|<\|assistant\|>|<\|user\|>|<\/?system>|<\/?prompt>)/i, severity: "medium" },
-  { name: "base64_payload", regex: /([A-Za-z0-9+/]{40,}={0,2})/, severity: "low" },
+  { name: "base64_payload", regex: /^([A-Za-z0-9+/]{64,}={0,2})$/, severity: "informational" },
   { name: "unicode_escape", regex: /(\\u[0-9a-fA-F]{4}){4,}/i, severity: "medium" },
   { name: "eval_execution", regex: /(eval\(|exec\(|Function\(|setTimeout\(|setInterval\()/i, severity: "critical" },
-  { name: "template_injection", regex: /(\{\{.*\}\}|<%.*%>|`\$\{)/, severity: "medium" },
+  { name: "template_injection", regex: /(\{\{.*\}\}|<%.*%>)/, severity: "informational" },
   { name: "markdown_injection", regex: /(```[\s\S]{200,}```)/, severity: "low" },
 ];
 
@@ -23,10 +23,27 @@ const POISONING_INDICATORS = [
   { name: "nested_structure", regex: /(\[|\{)(\s*(\[|\{)){10,}/, severity: "medium" },
 ];
 
-function scanForInjections(text) {
+const DEFAULT_WHITELIST = [
+  /\$\{.*\}/,
+  /\bprocess\.env\.\w+\b/,
+  /\brequire\(['"]/,
+  /import\s+.*from\s+['"]/,
+  /export\s+(default|const|function|class)\b/,
+];
+
+function isWhitelisted(text, whitelist = DEFAULT_WHITELIST) {
+  for (const pattern of whitelist) {
+    if (pattern.test(text)) return true;
+  }
+  return false;
+}
+
+function scanForInjections(text, whitelist = DEFAULT_WHITELIST) {
   const findings = [];
 
   for (const pattern of INJECTION_PATTERNS) {
+    if (isWhitelisted(text, whitelist)) continue;
+
     const matches = text.match(pattern.regex);
     if (matches) {
       findings.push({
@@ -42,10 +59,12 @@ function scanForInjections(text) {
   return findings;
 }
 
-function scanForPoisoning(text) {
+function scanForPoisoning(text, whitelist = DEFAULT_WHITELIST) {
   const findings = [];
 
   for (const indicator of POISONING_INDICATORS) {
+    if (isWhitelisted(text, whitelist)) continue;
+
     const matches = text.match(indicator.regex);
     if (matches) {
       findings.push({
@@ -62,31 +81,32 @@ function scanForPoisoning(text) {
 }
 
 function calculateRiskScore(findings) {
-  const severityWeights = { critical: 10, high: 5, medium: 2, low: 1 };
+  const severityWeights = { critical: 10, high: 5, medium: 2, low: 1, informational: 0 };
   let score = 0;
   for (const finding of findings) {
-    score += severityWeights[finding.severity] || 1;
+    score += severityWeights[finding.severity] || 0;
   }
   return score;
 }
 
 function getHighestSeverity(findings) {
-  const order = ["critical", "high", "medium", "low"];
+  const order = ["critical", "high", "medium", "low", "informational"];
+  const actionableFindings = findings.filter((f) => f.severity !== "informational");
   for (const level of order) {
-    if (findings.some((f) => f.severity === level)) {
+    if (actionableFindings.some((f) => f.severity === level)) {
       return level;
     }
   }
   return "none";
 }
 
-function scanContent(text) {
+function scanContent(text, whitelist = DEFAULT_WHITELIST) {
   if (typeof text !== "string") {
     return { findings: [], riskScore: 0, highestSeverity: "none", blocked: false };
   }
 
-  const injectionFindings = scanForInjections(text);
-  const poisoningFindings = scanForPoisoning(text);
+  const injectionFindings = scanForInjections(text, whitelist);
+  const poisoningFindings = scanForPoisoning(text, whitelist);
   const allFindings = [...injectionFindings, ...poisoningFindings];
   const riskScore = calculateRiskScore(allFindings);
   const highestSeverity = getHighestSeverity(allFindings);
@@ -159,6 +179,8 @@ function scanRecord(req, res, next) {
 module.exports = {
   INJECTION_PATTERNS,
   POISONING_INDICATORS,
+  DEFAULT_WHITELIST,
+  isWhitelisted,
   scanForInjections,
   scanForPoisoning,
   scanContent,

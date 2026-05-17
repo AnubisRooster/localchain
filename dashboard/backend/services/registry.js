@@ -6,6 +6,7 @@
 const Database = require("better-sqlite3");
 const path = require("path");
 const fs = require("fs");
+const { runMigrations, REGISTRY_MIGRATIONS } = require("./migrations");
 
 const REGISTRY_DB_PATH = process.env.REGISTRY_DB_PATH || path.join(__dirname, "../../data", "registry.db");
 
@@ -24,30 +25,10 @@ function initDb(dbPath) {
   db.pragma("journal_mode = WAL");
   db.pragma("synchronous = NORMAL");
 
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS validator_nodes (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      node_id TEXT UNIQUE NOT NULL,
-      moniker TEXT NOT NULL,
-      public_endpoint TEXT NOT NULL,
-      rpc_port INTEGER NOT NULL DEFAULT 26657,
-      rest_port INTEGER NOT NULL DEFAULT 1317,
-      p2p_port INTEGER NOT NULL DEFAULT 26656,
-      registered_at TEXT NOT NULL DEFAULT (datetime('now')),
-      last_seen TEXT,
-      status TEXT NOT NULL DEFAULT 'unknown',
-      block_height INTEGER DEFAULT 0,
-      catching_up INTEGER DEFAULT 0,
-      latency_ms INTEGER DEFAULT 0,
-      version TEXT,
-      network TEXT,
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_node_id ON validator_nodes(node_id);
-    CREATE INDEX IF NOT EXISTS idx_status ON validator_nodes(status);
-    CREATE INDEX IF NOT EXISTS idx_last_seen ON validator_nodes(last_seen);
-  `);
+  const result = runMigrations(db, REGISTRY_MIGRATIONS);
+  if (result.applied > 0) {
+    console.log(`[registry-db] Applied ${result.applied} migration(s): ${result.migrations.join(", ")}`);
+  }
 
   insertNode = db.prepare(`
     INSERT INTO validator_nodes (node_id, moniker, public_endpoint, rpc_port, rest_port, p2p_port, version, network)

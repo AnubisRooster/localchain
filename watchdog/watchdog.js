@@ -3,7 +3,7 @@
 // Monitors the blockchain node and auto-recovers failures.
 // Run via PM2: pm2 start watchdog/watchdog.js
 // ─────────────────────────────────────────────────────────────
-const { exec, execSync } = require("child_process");
+const { execFile } = require("child_process");
 const os = require("os");
 const fs = require("fs");
 const http = require("http");
@@ -16,11 +16,15 @@ const { rules, settings } = JSON.parse(fs.readFileSync(rulesPath, "utf8"));
 const CHECK_INTERVAL = settings.checkIntervalMs || 5000;
 const COOLDOWN = settings.restartCooldownMs || 60000;
 const MAX_RESTARTS = settings.maxRestartsPerHour || 5;
+const HEALTH_PORT = settings.healthPort || 3002;
 
 let lastRestartTime = 0;
 let restartsThisHour = 0;
 let lastKnownHeight = 0;
 let lastHeightChangeTime = Date.now();
+let watchdogStartTime = Date.now();
+let totalChecks = 0;
+let failedChecks = 0;
 
 // ── Logging ─────────────────────────────────────────────────
 const logFile = settings.logFile
@@ -51,6 +55,16 @@ function httpGet(url, timeoutMs = 5000) {
     req.on("timeout", () => {
       req.destroy();
       reject(new Error("timeout"));
+    });
+  });
+}
+
+// ── execFile wrapper ────────────────────────────────────────
+function runCommand(cmd, args, options = {}) {
+  return new Promise((resolve, reject) => {
+    execFile(cmd, args, { timeout: 10000, ...options }, (err, stdout, stderr) => {
+      if (err) return reject(new Error(stderr || err.message));
+      resolve(stdout.trim());
     });
   });
 }
@@ -109,21 +123,17 @@ function checkMemoryUsage(rule) {
   return { ok: true, memPercent: usedPercent.toFixed(1) };
 }
 
-function checkProcessAlive(rule) {
+async function checkProcessAlive(rule) {
   try {
     const processName = rule.processName || "localchaind";
-    // Cross-platform process check
-    const cmd =
-      os.platform() === "win32"
-        ? `tasklist /FI "IMAGENAME eq ${processName}.exe" /NH`
-        : `pgrep -f ${processName}`;
-
-    const result = execSync(cmd, { encoding: "utf8", timeout: 3000 });
 
     if (os.platform() === "win32") {
+      const result = await runCommand("tasklist", ["/FI", `IMAGENAME eq ${processName}.exe`, "/NH"]);
       return { ok: result.includes(processName), pid: "win32" };
     }
-    const pids = result.trim().split("\n").filter(Boolean);
+
+    const result = await runCommand("pgrep", ["-f", processName]);
+    const pids = result.split("\n").filter(Boolean);
     return pids.length > 0
       ? { ok: true, pid: pids[0] }
       : { ok: false, reason: `${processName} process not found` };
@@ -157,18 +167,15 @@ const CHECK_MAP = {
 function canRestart() {
   const now = Date.now();
 
-  // Reset hourly counter
   if (now - lastRestartTime > 3600000) {
     restartsThisHour = 0;
   }
 
-  // Cooldown check
   if (now - lastRestartTime < COOLDOWN) {
     log("WARN", `Restart cooldown active (${((COOLDOWN - (now - lastRestartTime)) / 1000).toFixed(0)}s remaining)`);
     return false;
   }
 
-  // Max restarts check
   if (restartsThisHour >= MAX_RESTARTS) {
     log("ERROR", `Max restarts (${MAX_RESTARTS}/hr) reached — manual intervention needed`);
     return false;
@@ -186,26 +193,66 @@ function performAction(action) {
 
   if (action === "restart") {
     log("ACTION", "Restarting localchaind via PM2...");
-    exec("pm2 restart localchaind", (err, stdout) => {
-      if (err) {
+    runCommand("pm2", ["restart", "localchaind"])
+      .then((stdout) => log("ACTION", `PM2 restart output: ${stdout}`))
+      .catch((err) => {
         log("ERROR", `PM2 restart failed: ${err.message}`);
-        // Fallback: kill and let PM2 autorestart
         log("ACTION", "Fallback: killing localchaind...");
-        exec("pkill -f localchaind");
-      } else {
-        log("ACTION", `PM2 restart output: ${stdout.trim()}`);
-      }
-    });
+        runCommand("pkill", ["-f", "localchaind"]).catch(() => {});
+      });
   } else if (action === "start") {
     log("ACTION", "Starting localchaind via PM2...");
-    exec("pm2 start localchaind", (err, stdout) => {
-      if (err) {
-        log("ERROR", `PM2 start failed: ${err.message}`);
-      } else {
-        log("ACTION", `PM2 start output: ${stdout.trim()}`);
-      }
-    });
+    runCommand("pm2", ["start", "localchaind"])
+      .then((stdout) => log("ACTION", `PM2 start output: ${stdout}`))
+      .catch((err) => log("ERROR", `PM2 start failed: ${err.message}`));
   }
+}
+
+// ══════════════════════════════════════════════════════════
+// Watchdog self-health endpoint
+// ══════════════════════════════════════════════════════════
+
+function startHealthServer() {
+  const server = http.createServer((req, res) => {
+    if (req.url === "/health" || req.url === "/") {
+      const uptime = Math.round((Date.now() - watchdogStartTime) / 1000);
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({
+        status: "ok",
+        uptime_seconds: uptime,
+        checks: {
+          total: totalChecks,
+          failed: failedChecks,
+          success_rate: totalChecks > 0 ? ((1 - failedChecks / totalChecks) * 100).toFixed(1) + "%" : "100%",
+        },
+        restarts: {
+          this_hour: restartsThisHour,
+          max_per_hour: MAX_RESTARTS,
+          cooldown_remaining: Math.max(0, Math.round((COOLDOWN - (Date.now() - lastRestartTime)) / 1000)),
+        },
+        config: {
+          check_interval_ms: CHECK_INTERVAL,
+          active_rules: rules.filter((r) => r.enabled).length,
+        },
+      }));
+    } else if (req.url === "/status") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({
+        last_known_height: lastKnownHeight,
+        last_height_change: new Date(lastHeightChangeTime).toISOString(),
+        last_restart: lastRestartTime > 0 ? new Date(lastRestartTime).toISOString() : null,
+      }));
+    } else {
+      res.writeHead(404, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Not found" }));
+    }
+  });
+
+  server.listen(HEALTH_PORT, () => {
+    log("INFO", `Watchdog health endpoint: http://localhost:${HEALTH_PORT}/health`);
+  });
+
+  return server;
 }
 
 // ══════════════════════════════════════════════════════════
@@ -216,6 +263,7 @@ async function runChecks() {
   for (const rule of rules) {
     if (!rule.enabled) continue;
 
+    totalChecks++;
     const checkFn = CHECK_MAP[rule.check];
     if (!checkFn) {
       log("WARN", `Unknown check type: ${rule.check}`);
@@ -225,22 +273,24 @@ async function runChecks() {
     try {
       const result = await checkFn(rule);
       if (!result.ok) {
+        failedChecks++;
         log("ALERT", `[${rule.id}] ${result.reason}`);
         performAction(rule.action);
       }
     } catch (err) {
+      failedChecks++;
       log("ERROR", `[${rule.id}] Check threw: ${err.message}`);
     }
   }
 }
 
 // ── Start ───────────────────────────────────────────────────
-log("INFO", "🐺 Watchdog started");
+log("INFO", "Watchdog started");
 log("INFO", `   Check interval : ${CHECK_INTERVAL}ms`);
 log("INFO", `   Restart cooldown: ${COOLDOWN}ms`);
 log("INFO", `   Max restarts/hr : ${MAX_RESTARTS}`);
 log("INFO", `   Active rules    : ${rules.filter((r) => r.enabled).length}`);
 
+startHealthServer();
 setInterval(runChecks, CHECK_INTERVAL);
-// Run once immediately
 runChecks();

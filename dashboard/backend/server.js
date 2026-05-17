@@ -72,7 +72,7 @@ app.get("/health", async (req, res) => {
       catchingUp: info.sync_info.catching_up,
     });
 
-    metrics.observeHistogram("localchain_node_latency_seconds", latency / 1000);
+    metrics.nodeLatency.observe(latency / 1000);
 
     res.json({
       status: "ok",
@@ -345,10 +345,10 @@ app.post(
       });
 
       const result = await broadcastRecord(payload, req.query.node);
-      metrics.incCounter("localchain_tx_broadcast_total");
+      metrics.txBroadcastTotal.inc({ status: "total" });
 
       if (result.code && result.code !== 0) {
-        metrics.incCounter("localchain_tx_broadcast_failed_total");
+        metrics.txBroadcastTotal.inc({ status: "failed" });
         const address = req.body?.creator || req.ip;
         if (address) {
           updateReputation(address, "failedTx", "Transaction rejected by chain");
@@ -360,7 +360,7 @@ app.post(
         });
       }
 
-      metrics.incCounter("localchain_tx_broadcast_success_total");
+      metrics.txBroadcastTotal.inc({ status: "success" });
 
       const address = req.body?.creator || req.ip;
       if (address) {
@@ -528,7 +528,7 @@ app.post("/api/auth/keys", (req, res) => {
       permissions,
       createdBy: req.ip,
     });
-    metrics.incCounter("localchain_api_keys_created_total");
+    metrics.apiKeysCreatedTotal.inc();
     res.status(201).json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -552,7 +552,7 @@ app.delete("/api/auth/keys/:id", (req, res) => {
   if (!result.success) {
     return res.status(404).json({ error: "Key not found" });
   }
-  metrics.incCounter("localchain_api_keys_revoked_total");
+  metrics.apiKeysRevokedTotal.inc();
   res.json(result);
 });
 
@@ -619,7 +619,7 @@ app.post("/api/tenants", (req, res) => {
       rateWindow: rateWindow ? parseInt(rateWindow, 10) : undefined,
       metadata,
     });
-    metrics.incCounter("localchain_tenants_created_total");
+    metrics.tenantsCreatedTotal.inc();
     res.status(201).json(tenant);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -688,7 +688,7 @@ app.post("/api/nodes/register", validateSharedSecret, (req, res) => {
       version,
       network,
     });
-    metrics.incCounter("localchain_node_registrations_total");
+    metrics.nodeRegistrationsTotal.inc();
     res.status(201).json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -749,7 +749,7 @@ app.delete("/api/nodes/:nodeId", (req, res) => {
   if (!result.success) {
     return res.status(404).json({ error: "Node not found" });
   }
-  metrics.incCounter("localchain_node_deregistrations_total");
+  metrics.nodeDeregistrationsTotal.inc();
   clearPool();
   resetBroadcastClient();
   res.json(result);
@@ -848,9 +848,9 @@ app.get("/api/system", (_req, res) => {
 });
 
 // Prometheus-compatible text metrics
-app.get("/api/metrics", (_req, res) => {
+app.get("/api/metrics", async (_req, res) => {
   res.set("Content-Type", "text/plain; version=0.0.4");
-  res.send(metrics.generatePrometheusText());
+  res.send(await metrics.generatePrometheusText());
 });
 
 // JSON metrics summary for dashboard

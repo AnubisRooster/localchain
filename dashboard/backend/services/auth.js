@@ -6,6 +6,7 @@ const Database = require("better-sqlite3");
 const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
+const { runMigrations, AUTH_MIGRATIONS } = require("./migrations");
 
 const AUTH_DB_PATH = process.env.AUTH_DB_PATH || path.join(__dirname, "../../data", "auth.db");
 
@@ -24,41 +25,10 @@ function initDb() {
   db.pragma("journal_mode = WAL");
   db.pragma("synchronous = NORMAL");
 
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS api_keys (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      key_hash TEXT UNIQUE NOT NULL,
-      key_prefix TEXT NOT NULL,
-      label TEXT NOT NULL,
-      created_by TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      last_used_at TEXT,
-      expires_at TEXT,
-      status TEXT NOT NULL DEFAULT 'active',
-      rate_limit INTEGER DEFAULT 1000,
-      rate_window INTEGER DEFAULT 3600,
-      permissions TEXT NOT NULL DEFAULT '["read","write"]'
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_key_hash ON api_keys(key_hash);
-    CREATE INDEX IF NOT EXISTS idx_status ON api_keys(status);
-    CREATE INDEX IF NOT EXISTS idx_expires ON api_keys(expires_at);
-
-    CREATE TABLE IF NOT EXISTS usage_log (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      key_id INTEGER NOT NULL,
-      endpoint TEXT NOT NULL,
-      method TEXT NOT NULL,
-      ip TEXT,
-      user_agent TEXT,
-      status_code INTEGER,
-      timestamp TEXT NOT NULL DEFAULT (datetime('now')),
-      FOREIGN KEY (key_id) REFERENCES api_keys(id)
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_usage_key ON usage_log(key_id);
-    CREATE INDEX IF NOT EXISTS idx_usage_time ON usage_log(timestamp);
-  `);
+  const result = runMigrations(db, AUTH_MIGRATIONS);
+  if (result.applied > 0) {
+    console.log(`[auth-db] Applied ${result.applied} migration(s): ${result.migrations.join(", ")}`);
+  }
 
   insertKeyStmt = db.prepare(`
     INSERT INTO api_keys (key_hash, key_prefix, label, created_by, expires_at, rate_limit, rate_window, permissions)

@@ -1,3 +1,4 @@
+const client = require("prom-client");
 const metrics = require("../services/metrics");
 
 describe("Metrics Service", () => {
@@ -6,155 +7,177 @@ describe("Metrics Service", () => {
   });
 
   describe("init", () => {
-    it("initializes all counters", () => {
-      expect(metrics.counters.size).toBeGreaterThan(0);
-      expect(metrics.counters.has("localchain_api_requests_total")).toBe(true);
-      expect(metrics.counters.has("localchain_api_errors_total")).toBe(true);
-      expect(metrics.counters.has("localchain_tx_broadcast_total")).toBe(true);
-      expect(metrics.counters.has("localchain_node_registrations_total")).toBe(true);
-      expect(metrics.counters.has("localchain_api_keys_created_total")).toBe(true);
-      expect(metrics.counters.has("localchain_tenants_created_total")).toBe(true);
+    it("registers counter metrics", async () => {
+      const metricFamilies = await metrics.register.getMetricsAsArray();
+      const names = metricFamilies.map((m) => m.name);
+      expect(names).toContain("localchain_api_requests_total");
+      expect(names).toContain("localchain_api_errors_total");
+      expect(names).toContain("localchain_tx_broadcast_total");
+      expect(names).toContain("localchain_node_registrations_total");
+      expect(names).toContain("localchain_api_keys_created_total");
+      expect(names).toContain("localchain_tenants_created_total");
     });
 
-    it("initializes all gauges", () => {
-      expect(metrics.gauges.size).toBeGreaterThan(0);
-      expect(metrics.gauges.has("localchain_block_height")).toBe(true);
-      expect(metrics.gauges.has("localchain_peers")).toBe(true);
-      expect(metrics.gauges.has("localchain_node_online")).toBe(true);
-      expect(metrics.gauges.has("localchain_active_tenants")).toBe(true);
-      expect(metrics.gauges.has("localchain_process_heap_used_mb")).toBe(true);
+    it("registers gauge metrics", async () => {
+      const metricFamilies = await metrics.register.getMetricsAsArray();
+      const names = metricFamilies.map((m) => m.name);
+      expect(names).toContain("localchain_block_height");
+      expect(names).toContain("localchain_peers");
+      expect(names).toContain("localchain_node_online");
+      expect(names).toContain("localchain_active_tenants");
     });
 
-    it("initializes all histograms", () => {
-      expect(metrics.histograms.size).toBeGreaterThan(0);
-      expect(metrics.histograms.has("localchain_request_duration_seconds")).toBe(true);
-      expect(metrics.histograms.has("localchain_block_time_seconds")).toBe(true);
-      expect(metrics.histograms.has("localchain_node_latency_seconds")).toBe(true);
+    it("registers histogram metrics", async () => {
+      const metricFamilies = await metrics.register.getMetricsAsArray();
+      const names = metricFamilies.map((m) => m.name);
+      expect(names).toContain("localchain_request_duration_seconds");
+      expect(names).toContain("localchain_block_time_seconds");
+      expect(names).toContain("localchain_node_latency_seconds");
     });
   });
 
   describe("counters", () => {
-    it("increments simple counter", () => {
-      metrics.incCounter("localchain_api_requests_total");
-      const c = metrics.counters.get("localchain_api_requests_total");
-      expect(c.value).toBe(1);
+    it("increments simple counter", async () => {
+      metrics.apiRequestsTotal.inc();
+      const v = await metrics.apiRequestsTotal.get();
+      expect(v.values[0].value).toBe(1);
     });
 
-    it("increments counter with custom value", () => {
-      metrics.incCounter("localchain_api_requests_total", {}, 5);
-      const c = metrics.counters.get("localchain_api_requests_total");
-      expect(c.value).toBe(5);
+    it("increments counter with custom value", async () => {
+      metrics.apiRequestsTotal.inc(5);
+      const v = await metrics.apiRequestsTotal.get();
+      expect(v.values[0].value).toBe(5);
     });
 
-    it("increments labeled counter", () => {
-      metrics.incCounter("localchain_api_requests_by_method_total", { method: "GET" });
-      metrics.incCounter("localchain_api_requests_by_method_total", { method: "GET" });
-      metrics.incCounter("localchain_api_requests_by_method_total", { method: "POST" });
-      const c = metrics.counters.get("localchain_api_requests_by_method_total");
-      expect(c.values.get('method="GET"')).toBe(2);
-      expect(c.values.get('method="POST"')).toBe(1);
+    it("increments labeled counter", async () => {
+      metrics.apiRequestsTotal.inc({ method: "GET", path: "/test", status: "200" });
+      metrics.apiRequestsTotal.inc({ method: "GET", path: "/test", status: "200" });
+      metrics.apiRequestsTotal.inc({ method: "POST", path: "/test", status: "201" });
+      const v = await metrics.apiRequestsTotal.get();
+      const getVal = v.values.find((x) => x.labels.method === "GET");
+      const postVal = v.values.find((x) => x.labels.method === "POST");
+      expect(getVal.value).toBe(2);
+      expect(postVal.value).toBe(1);
     });
   });
 
   describe("gauges", () => {
-    it("sets gauge value", () => {
-      metrics.setGauge("localchain_block_height", 12345);
-      const g = metrics.gauges.get("localchain_block_height");
-      expect(g.value).toBe(12345);
+    it("sets gauge value", async () => {
+      metrics.blockHeight.set(12345);
+      const v = await metrics.blockHeight.get();
+      expect(v.values[0].value).toBe(12345);
     });
 
-    it("increments gauge", () => {
-      metrics.incGauge("localchain_node_online");
-      metrics.incGauge("localchain_node_online");
-      const g = metrics.gauges.get("localchain_node_online");
-      expect(g.value).toBe(2);
+    it("increments gauge", async () => {
+      metrics.nodeOnline.inc();
+      metrics.nodeOnline.inc();
+      const v = await metrics.nodeOnline.get();
+      expect(v.values[0].value).toBe(2);
     });
 
-    it("decrements gauge with negative delta", () => {
-      metrics.setGauge("localchain_node_online", 5);
-      metrics.incGauge("localchain_node_online", -2);
-      const g = metrics.gauges.get("localchain_node_online");
-      expect(g.value).toBe(3);
+    it("decrements gauge with negative delta", async () => {
+      metrics.nodeOnline.set(5);
+      metrics.nodeOnline.inc(-2);
+      const v = await metrics.nodeOnline.get();
+      expect(v.values[0].value).toBe(3);
     });
   });
 
   describe("histograms", () => {
-    it("records observations", () => {
-      metrics.observeHistogram("localchain_request_duration_seconds", 0.1);
-      metrics.observeHistogram("localchain_request_duration_seconds", 0.2);
-      metrics.observeHistogram("localchain_request_duration_seconds", 0.5);
-      const h = metrics.histograms.get("localchain_request_duration_seconds");
-      expect(h.samples.length).toBe(3);
+    it("records observations", async () => {
+      metrics.requestDuration.observe(0.1);
+      metrics.requestDuration.observe(0.2);
+      metrics.requestDuration.observe(0.5);
+      const v = await metrics.requestDuration.get();
+      expect(v.values.find((x) => x.labels.le === "+Inf").value).toBe(3);
     });
 
-    it("caps sample size", () => {
-      for (let i = 0; i < 15000; i++) {
-        metrics.observeHistogram("localchain_request_duration_seconds", i / 1000);
-      }
-      const h = metrics.histograms.get("localchain_request_duration_seconds");
-      expect(h.samples.length).toBeLessThanOrEqual(10000);
+    it("has correct bucket boundaries", async () => {
+      metrics.requestDuration.observe(0.003);
+      metrics.requestDuration.observe(0.02);
+      metrics.requestDuration.observe(0.3);
+      const v = await metrics.requestDuration.get();
+      const bucket005 = v.values.find((x) => parseFloat(x.labels.le) === 0.005);
+      const bucket025 = v.values.find((x) => parseFloat(x.labels.le) === 0.025);
+      const bucket05 = v.values.find((x) => parseFloat(x.labels.le) === 0.5);
+      expect(bucket005.value).toBe(1);
+      expect(bucket025.value).toBe(2);
+      expect(bucket05.value).toBe(3);
     });
   });
 
   describe("updateChainMetrics", () => {
-    it("updates chain gauges", () => {
+    it("updates chain gauges", async () => {
       metrics.updateChainMetrics({ blockHeight: 500000, peers: 3, catchingUp: false });
-      expect(metrics.gauges.get("localchain_block_height").value).toBe(500000);
-      expect(metrics.gauges.get("localchain_peers").value).toBe(3);
-      expect(metrics.gauges.get("localchain_catching_up").value).toBe(0);
+      const bh = await metrics.blockHeight.get();
+      const p = await metrics.peers.get();
+      const cu = await metrics.catchingUp.get();
+      expect(bh.values[0].value).toBe(500000);
+      expect(p.values[0].value).toBe(3);
+      expect(cu.values[0].value).toBe(0);
     });
 
-    it("sets catching_up to 1 when true", () => {
+    it("sets catching_up to 1 when true", async () => {
       metrics.updateChainMetrics({ blockHeight: 100, peers: 0, catchingUp: true });
-      expect(metrics.gauges.get("localchain_catching_up").value).toBe(1);
+      const cu = await metrics.catchingUp.get();
+      expect(cu.values[0].value).toBe(1);
     });
 
-    it("records block time between updates", () => {
+    it("records block time between updates", async () => {
       metrics.updateChainMetrics({ blockHeight: 100, peers: 1, catchingUp: false });
-      const h = metrics.histograms.get("localchain_block_time_seconds");
-      expect(h.samples.length).toBe(0);
+      const bt = await metrics.blockTime.get();
+      const countBefore = bt.values.find((x) => x.labels.le === "+Inf").value;
+      expect(countBefore).toBe(0);
 
-      setTimeout(() => {
-        metrics.updateChainMetrics({ blockHeight: 101, peers: 1, catchingUp: false });
-        expect(h.samples.length).toBe(1);
-      }, 100);
+      await new Promise((r) => setTimeout(r, 100));
+      metrics.updateChainMetrics({ blockHeight: 101, peers: 1, catchingUp: false });
+      const bt2 = await metrics.blockTime.get();
+      const countAfter = bt2.values.find((x) => x.labels.le === "+Inf").value;
+      expect(countAfter).toBeGreaterThanOrEqual(1);
     });
   });
 
   describe("updateNodePoolMetrics", () => {
-    it("updates node pool gauges", () => {
+    it("updates node pool gauges", async () => {
       metrics.updateNodePoolMetrics({ total: 5, online: 3, offline: 2 });
-      expect(metrics.gauges.get("localchain_node_pool_size").value).toBe(5);
-      expect(metrics.gauges.get("localchain_node_online").value).toBe(3);
-      expect(metrics.gauges.get("localchain_node_offline").value).toBe(2);
+      const ps = await metrics.nodePoolSize.get();
+      const on = await metrics.nodeOnline.get();
+      const off = await metrics.nodeOffline.get();
+      expect(ps.values[0].value).toBe(5);
+      expect(on.values[0].value).toBe(3);
+      expect(off.values[0].value).toBe(2);
     });
   });
 
   describe("updateTenantMetrics", () => {
-    it("updates tenant gauges", () => {
+    it("updates tenant gauges", async () => {
       metrics.updateTenantMetrics({ active_tenants: 4, total_keys: 12 });
-      expect(metrics.gauges.get("localchain_active_tenants").value).toBe(4);
-      expect(metrics.gauges.get("localchain_active_api_keys").value).toBe(12);
+      const at = await metrics.activeTenants.get();
+      const ak = await metrics.activeApiKeys.get();
+      expect(at.values[0].value).toBe(4);
+      expect(ak.values[0].value).toBe(12);
     });
   });
 
   describe("updateSystemMetrics", () => {
-    it("updates system gauges", () => {
+    it("updates system gauges", async () => {
       metrics.updateSystemMetrics();
-      expect(metrics.gauges.get("localchain_system_mem_used_percent").value).toBeGreaterThan(0);
-      expect(metrics.gauges.get("localchain_system_cpu_load").value).toBeGreaterThanOrEqual(0);
-      expect(metrics.gauges.get("localchain_system_uptime_seconds").value).toBeGreaterThan(0);
-      expect(metrics.gauges.get("localchain_process_heap_used_mb").value).toBeGreaterThan(0);
+      const mem = await metrics.systemMemUsedPercent.get();
+      const cpu = await metrics.systemCpuLoad.get();
+      const up = await metrics.systemUptime.get();
+      expect(mem.values[0].value).toBeGreaterThan(0);
+      expect(cpu.values[0].value).toBeGreaterThanOrEqual(0);
+      expect(up.values[0].value).toBeGreaterThan(0);
     });
   });
 
   describe("generatePrometheusText", () => {
-    it("returns valid Prometheus text format", () => {
-      metrics.incCounter("localchain_api_requests_total");
-      metrics.setGauge("localchain_block_height", 100);
-      metrics.observeHistogram("localchain_request_duration_seconds", 0.05);
+    it("returns valid Prometheus text format", async () => {
+      metrics.apiRequestsTotal.inc();
+      metrics.blockHeight.set(100);
+      metrics.requestDuration.observe(0.05);
 
-      const text = metrics.generatePrometheusText();
+      const text = await metrics.generatePrometheusText();
       expect(text).toContain("# HELP localchain_api_requests_total");
       expect(text).toContain("# TYPE localchain_api_requests_total counter");
       expect(text).toContain("localchain_api_requests_total 1");
@@ -167,58 +190,51 @@ describe("Metrics Service", () => {
       expect(text).toContain("localchain_request_duration_seconds_count 1");
     });
 
-    it("includes labeled counters", () => {
-      metrics.incCounter("localchain_api_requests_by_method_total", { method: "GET" });
-      metrics.incCounter("localchain_api_requests_by_method_total", { method: "POST" });
+    it("includes labeled counters", async () => {
+      metrics.apiRequestsTotal.inc({ method: "GET", path: "/test", status: "200" });
+      metrics.apiRequestsTotal.inc({ method: "POST", path: "/test", status: "201" });
 
-      const text = metrics.generatePrometheusText();
+      const text = await metrics.generatePrometheusText();
       expect(text).toContain('method="GET"');
       expect(text).toContain('method="POST"');
     });
 
-    it("includes info metric", () => {
-      const text = metrics.generatePrometheusText();
+    it("includes info metric", async () => {
+      const text = await metrics.generatePrometheusText();
       expect(text).toContain("# TYPE localchain_info gauge");
-      expect(text).toContain('localchain_info{version="1.0.0"');
+      expect(text).toContain('version="1.0.0"');
     });
   });
 
   describe("getJsonSummary", () => {
-    it("returns structured summary", () => {
-      metrics.incCounter("localchain_api_requests_total");
-      metrics.incCounter("localchain_api_errors_total");
-      metrics.setGauge("localchain_block_height", 500000);
-      metrics.setGauge("localchain_node_online", 2);
+    it("returns structured summary", async () => {
+      metrics.apiRequestsTotal.inc();
+      metrics.apiErrorsTotal.inc();
+      metrics.blockHeight.set(500000);
+      metrics.nodeOnline.set(2);
 
-      const summary = metrics.getJsonSummary();
+      const summary = await metrics.getJsonSummary();
       expect(summary.requests.total).toBe(1);
       expect(summary.requests.errors).toBe(1);
       expect(summary.chain.blockHeight).toBe(500000);
       expect(summary.nodes.online).toBe(2);
-      expect(summary.latency).toHaveProperty("p50_ms");
-      expect(summary.latency).toHaveProperty("p95_ms");
-      expect(summary.latency).toHaveProperty("p99_ms");
       expect(summary.system).toHaveProperty("memUsedPercent");
       expect(summary.system).toHaveProperty("cpuLoad");
       expect(summary.tenants).toHaveProperty("active");
       expect(summary.transactions).toHaveProperty("total");
     });
 
-    it("calculates error rate", () => {
-      for (let i = 0; i < 100; i++) {
-        metrics.incCounter("localchain_api_requests_total");
-      }
-      for (let i = 0; i < 5; i++) {
-        metrics.incCounter("localchain_api_errors_total");
-      }
+    it("calculates error rate", async () => {
+      metrics.apiRequestsTotal.inc(100);
+      metrics.apiErrorsTotal.inc(5);
 
-      const summary = metrics.getJsonSummary();
+      const summary = await metrics.getJsonSummary();
       expect(summary.requests.errorRate).toBe("5.00%");
     });
   });
 
   describe("httpMiddleware", () => {
-    it("tracks requests and status codes", () => {
+    it("tracks requests and status codes", async () => {
       const mockReq = { method: "GET", path: "/health" };
       const mockRes = {
         statusCode: 200,
@@ -231,11 +247,11 @@ describe("Metrics Service", () => {
       mockRes.end();
 
       expect(nextCalled).toBe(true);
-      expect(metrics.counters.get("localchain_api_requests_total").value).toBe(1);
-      expect(metrics.counters.get("localchain_api_requests_by_method_total").values.get('method="GET"')).toBe(1);
+      const v = await metrics.apiRequestsTotal.get();
+      expect(v.values[0].value).toBe(1);
     });
 
-    it("increments error counter for 4xx/5xx", () => {
+    it("increments error counter for 4xx/5xx", async () => {
       const mockReq = { method: "POST", path: "/api/records" };
       const mockRes = {
         statusCode: 500,
@@ -246,10 +262,11 @@ describe("Metrics Service", () => {
       metrics.httpMiddleware(mockReq, mockRes, next);
       mockRes.end();
 
-      expect(metrics.counters.get("localchain_api_errors_total").value).toBe(1);
+      const v = await metrics.apiErrorsTotal.get();
+      expect(v.values[0].value).toBe(1);
     });
 
-    it("records request duration", () => {
+    it("records request duration", async () => {
       const mockReq = { method: "GET", path: "/api/health" };
       const mockRes = {
         statusCode: 200,
@@ -260,23 +277,26 @@ describe("Metrics Service", () => {
       metrics.httpMiddleware(mockReq, mockRes, next);
       mockRes.end();
 
-      const h = metrics.histograms.get("localchain_request_duration_seconds");
-      expect(h.samples.length).toBe(1);
-      expect(h.samples[0]).toBeLessThan(1);
+      const v = await metrics.requestDuration.get();
+      const count = v.values.find((x) => x.labels.le === "+Inf").value;
+      expect(count).toBe(1);
     });
   });
 
   describe("reset", () => {
-    it("clears all metrics", () => {
-      metrics.incCounter("localchain_api_requests_total");
-      metrics.setGauge("localchain_block_height", 999);
-      metrics.observeHistogram("localchain_request_duration_seconds", 0.1);
+    it("clears all metrics", async () => {
+      metrics.apiRequestsTotal.inc();
+      metrics.blockHeight.set(999);
+      metrics.requestDuration.observe(0.1);
 
       metrics.reset();
 
-      expect(metrics.counters.get("localchain_api_requests_total").value).toBe(0);
-      expect(metrics.gauges.get("localchain_block_height").value).toBe(0);
-      expect(metrics.histograms.get("localchain_request_duration_seconds").samples.length).toBe(0);
+      const req = await metrics.apiRequestsTotal.get();
+      const bh = await metrics.blockHeight.get();
+      const rd = await metrics.requestDuration.get();
+      expect(req.values[0]?.value || 0).toBe(0);
+      expect(bh.values[0]?.value || 0).toBe(0);
+      expect(rd.values.find((x) => x.labels.le === "+Inf")?.value || 0).toBe(0);
     });
   });
 });

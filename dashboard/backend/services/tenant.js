@@ -6,6 +6,7 @@ const Database = require("better-sqlite3");
 const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
+const { runMigrations, TENANT_MIGRATIONS } = require("./migrations");
 
 const TENANT_DB_PATH = process.env.TENANT_DB_PATH || path.join(__dirname, "../../data", "tenants.db");
 
@@ -25,58 +26,10 @@ function initDb() {
   db.pragma("journal_mode = WAL");
   db.pragma("synchronous = NORMAL");
 
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS tenants (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      tenant_id TEXT UNIQUE NOT NULL,
-      name TEXT NOT NULL,
-      description TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      status TEXT NOT NULL DEFAULT 'active',
-      max_nodes INTEGER DEFAULT 10,
-      max_api_keys INTEGER DEFAULT 20,
-      rate_limit INTEGER DEFAULT 1000,
-      rate_window INTEGER DEFAULT 3600,
-      metadata TEXT DEFAULT '{}'
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_tenant_id ON tenants(tenant_id);
-    CREATE INDEX IF NOT EXISTS idx_tenant_status ON tenants(status);
-
-    CREATE TABLE IF NOT EXISTS tenant_api_keys (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      tenant_id TEXT NOT NULL,
-      key_hash TEXT UNIQUE NOT NULL,
-      key_prefix TEXT NOT NULL,
-      label TEXT NOT NULL,
-      created_by TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      last_used_at TEXT,
-      expires_at TEXT,
-      status TEXT NOT NULL DEFAULT 'active',
-      rate_limit INTEGER DEFAULT 1000,
-      rate_window INTEGER DEFAULT 3600,
-      permissions TEXT NOT NULL DEFAULT '["read","write"]',
-      FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id)
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_tenant_key_hash ON tenant_api_keys(key_hash);
-    CREATE INDEX IF NOT EXISTS idx_tenant_key_tenant ON tenant_api_keys(tenant_id);
-
-    CREATE TABLE IF NOT EXISTS tenant_usage (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      tenant_id TEXT NOT NULL,
-      key_id INTEGER,
-      endpoint TEXT NOT NULL,
-      method TEXT NOT NULL,
-      ip TEXT,
-      timestamp TEXT NOT NULL DEFAULT (datetime('now')),
-      FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id)
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_tenant_usage_tenant ON tenant_usage(tenant_id);
-    CREATE INDEX IF NOT EXISTS idx_tenant_usage_time ON tenant_usage(timestamp);
-  `);
+  const result = runMigrations(db, TENANT_MIGRATIONS);
+  if (result.applied > 0) {
+    console.log(`[tenant-db] Applied ${result.applied} migration(s): ${result.migrations.join(", ")}`);
+  }
 
   insertTenantStmt = db.prepare(`
     INSERT INTO tenants (tenant_id, name, description, max_nodes, max_api_keys, rate_limit, rate_window, metadata)
