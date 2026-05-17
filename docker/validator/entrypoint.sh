@@ -23,6 +23,10 @@ if [ -f "/keys/priv_validator_key.json" ]; then
   cp /keys/priv_validator_key.json "$CHAIN_HOME/config/priv_validator_key.json"
 fi
 
+# Set minimum gas price in app.toml
+APP_TOML="$CHAIN_HOME/config/app.toml"
+sed -i 's|^minimum-gas-prices = ".*"|minimum-gas-prices = "0stake"|' "$APP_TOML"
+
 # Configure P2P
 CONFIG="$CHAIN_HOME/config/config.toml"
 
@@ -61,4 +65,4 @@ echo "[$MONIKER] Node ID: $(localchaind tendermint show-node-id --home "$CHAIN_H
 echo "[$MONIKER] Validator address: $(localchaind tendermint show-address --home "$CHAIN_HOME")"
 echo "[$MONIKER] Starting validator..."
 
-exec localchaind start --home "$CHAIN_HOME" --rpc.laddr "tcp://0.0.0.0:26657" --p2p.laddr "tcp://0.0.0.0:26656"
+exec localchaind start --home "$CHAIN_HOME" --rpc.laddr "tcp://0.0.0.0:26657" --p2p.laddr "tcp://0.0.0.0:26656" --minimum-gas-prices "0stake"

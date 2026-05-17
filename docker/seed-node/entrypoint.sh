@@ -2,19 +2,23 @@
 set -euo pipefail
 
 echo "═══════════════════════════════════════════════════"
-echo "  LocalChain Seed Node"
+echo "  LocalChain Seed Node (PEX only - not a validator)"
 echo "═══════════════════════════════════════════════════"
 
 # Initialize if not already done
 if [ ! -f "$CHAIN_HOME/config/node_key.json" ]; then
-  echo "[seed] Initializing node..."
-  localchaind init "$NODE_NAME" --chain-id localchain --home "$CHAIN_HOME"
+  echo "[seed] Initializing seed node..."
+  localchaind init "$NODE_NAME" --chain-id localchain --home "$CHAIN_HOME" > /dev/null 2>&1
+  echo "[seed] Initialization complete"
 fi
 
-# Copy genesis if provided externally
-if [ -f "/genesis/genesis.json" ]; then
-  echo "[seed] Using provided genesis..."
-  cp /genesis/genesis.json "$CHAIN_HOME/config/genesis.json"
+# DO NOT copy genesis - seed node runs its own empty chain for peer discovery only
+# Validators will have the real multi-validator genesis
+
+# Set minimum gas price
+APP_TOML="$CHAIN_HOME/config/app.toml"
+if [ -f "$APP_TOML" ]; then
+  sed -i 's|^minimum-gas-prices = ""|minimum-gas-prices = "0stake"|' "$APP_TOML"
 fi
 
 # Configure P2P for seed mode
@@ -39,22 +43,7 @@ sed -i 's|^addr_book_strict = .*|addr_book_strict = false|' "$CONFIG"
 # Enable Prometheus
 sed -i 's|^prometheus = .*|prometheus = true|' "$CONFIG"
 
-# Set external address if provided
-if [ -n "${EXTERNAL_ADDRESS:-}" ]; then
-  sed -i "s|^external_address = .*|external_address = \"$EXTERNAL_ADDRESS\"|" "$CONFIG"
-fi
-
-# Set seeds if provided
-if [ -n "${SEEDS:-}" ]; then
-  sed -i "s|^seeds = .*|seeds = \"$SEEDS\"|" "$CONFIG"
-fi
-
-# Set persistent peers if provided
-if [ -n "${PERSISTENT_PEERS:-}" ]; then
-  sed -i "s|^persistent_peers = .*|persistent_peers = \"$PERSISTENT_PEERS\"|" "$CONFIG"
-fi
-
 echo "[seed] Node ID: $(localchaind tendermint show-node-id --home "$CHAIN_HOME")"
-echo "[seed] Starting seed node..."
+echo "[seed] Starting seed node (PEX mode)..."
 
-exec localchaind start --home "$CHAIN_HOME" --rpc.laddr "tcp://0.0.0.0:26657" --p2p.laddr "tcp://0.0.0.0:26656"
+exec localchaind start --home "$CHAIN_HOME" --minimum-gas-prices "0stake"
