@@ -14,6 +14,9 @@ localchaind-*
 # OpenCode (personal config, not for repo)
 .opencode/
 
+# Docker
+docker/genesis/genesis.json
+
 # Dependencies
 node_modules/
 package-lock.json

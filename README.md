@@ -1,12 +1,12 @@
 # ⛓ LocalChain
 
-A self-hosted blockchain dashboard with built-in security pipeline, monitoring, and watchdog auto-recovery. Built on Cosmos SDK + Tendermint, with a Next.js frontend, Express API backend, and PM2-managed processes.
+A self-hosted, multi-validator blockchain with a dashboard, security pipeline, monitoring, and watchdog auto-recovery. Built on Cosmos SDK + Tendermint (CometBFT), with a Next.js frontend, Express API backend, and Docker-based multi-node testnet.
 
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                      LocalChain Stack                        │
+│                    LocalChain Monorepo                       │
 ├─────────────────────────────────────────────────────────────┤
 │                                                               │
 │  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐   │
@@ -24,6 +24,10 @@ A self-hosted blockchain dashboard with built-in security pipeline, monitoring, 
 │  │  (port 3001) │    │  (port 9090) │    │  (auto-fix)  │   │
 │  └──────────────┘    └──────────────┘    └──────────────┘   │
 │                                                               │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │  Docker Testnet: 4 Validators + Seed Node + API      │   │
+│  │  P2P: port 26656 | RPC: 26657 | REST: 1317           │   │
+│  └──────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -35,9 +39,11 @@ A self-hosted blockchain dashboard with built-in security pipeline, monitoring, 
 | **Express API** | 4000 | Proxies Cosmos REST + Tendermint RPC, security middleware |
 | **Cosmos REST** | 1317 | Cosmos SDK REST API (localchaind) |
 | **Tendermint RPC** | 26657 | Tendermint RPC endpoint |
+| **Tendermint P2P** | 26656 | Peer-to-peer consensus network |
 | **Prometheus** | 9090 | Metrics scraping and alerting |
 | **Grafana** | 3001 | Visualization dashboards |
 | **Watchdog** | — | Auto-recovery monitor for node health |
+| **Seed Node** | 26656 | PEX peer discovery for new validators |
 
 ## Features
 
@@ -92,11 +98,35 @@ Actions: auto-restart via PM2 with cooldown (60s) and max restart cap (5/hr) to 
 ### Prerequisites
 
 - **Node.js** >= 18
+- **Go** >= 1.25 (for building `localchaind`)
+- **Docker** + **Docker Compose** (for multi-validator testnet)
 - **PM2** (installed automatically by `start.sh`)
-- **localchaind** binary built and on PATH (or set `CHAIN_BINARY` env var)
 - **Tailscale** (optional, for multi-node discovery)
 
-### One-Command Launch
+### Option 1: Docker Multi-Validator Testnet (Recommended)
+
+Spin up a 4-validator testnet with seed node, API gateway, and dashboard:
+
+```bash
+# Start the testnet
+make testnet-up
+
+# Watch logs
+make testnet-logs
+
+# Check status
+make testnet-status
+
+# Stop
+make testnet-down
+
+# Clean everything (including data volumes)
+make testnet-clean
+```
+
+This builds `localchaind` from source inside Docker, generates a genesis with 4 validators, and starts the full network.
+
+### Option 2: Single-Node Launch (Mac / Linux)
 
 ```bash
 ./start.sh          # Mac / Linux
@@ -270,10 +300,94 @@ cd dashboard/frontend && npm test
 cd watchdog && npm test
 ```
 
+## Chain Development
+
+The Cosmos SDK chain source lives in `chain/`.
+
+```bash
+# Build localchaind binary
+make chain-build
+
+# Install to $GOPATH/bin
+make chain-install
+
+# Run Go tests
+cd chain && go test ./...
+
+# Generate protobuf files
+cd chain && make proto-gen
+
+# Run linter
+cd chain && make lint
+```
+
+## Docker Testnet
+
+The `docker/` directory contains everything needed to run a multi-validator testnet locally.
+
+### Architecture
+
+```
+seed-node (PEX) ──┬── validator-1 ── API ── Dashboard
+                  ├── validator-2
+                  ├── validator-3
+                  └── validator-4
+```
+
+All validators share a common genesis and discover each other via the seed node's PEX reactor.
+
+### Make Targets
+
+| Command | Description |
+|---------|-------------|
+| `make testnet-up` | Build images, generate genesis, start all containers |
+| `make testnet-down` | Stop all containers |
+| `make testnet-logs` | Tail all container logs |
+| `make testnet-status` | Show running containers |
+| `make testnet-clean` | Stop and remove all data volumes |
+| `make testnet-rebuild` | Rebuild images from scratch and restart |
+| `make genesis` | Generate genesis for N validators (default: 4) |
+| `make genesis NUM_VALIDATORS=6` | Generate genesis for 6 validators |
+
+### Port Mapping
+
+| Service | Host Port | Container Port |
+|---------|-----------|----------------|
+| Seed Node P2P | 26656 | 26656 |
+| Validator 1 RPC | 26657 | 26657 |
+| Validator 1 REST | 1317 | 1317 |
+| Validator 2 RPC | 26658 | 26657 |
+| Validator 2 REST | 1320 | 1317 |
+| Validator 3 RPC | 26659 | 26657 |
+| Validator 3 REST | 1323 | 1317 |
+| Validator 4 RPC | 26661 | 26657 |
+| Validator 4 REST | 1326 | 1317 |
+| API Gateway | 4000 | 4000 |
+| Dashboard | 3000 | 3000 |
+
+### Adding Remote Validators
+
+To join the network from a remote machine:
+
+1. Build `localchaind` from source (`make chain-install`)
+2. Initialize: `localchaind init my-validator --chain-id localchain`
+3. Fetch genesis from a running node: `curl http://<seed-host>:26657/genesis | jq .result.genesis > ~/.localchaind/config/genesis.json`
+4. Configure seeds: edit `~/.localchaind/config/config.toml`, set `seeds = "<node-id>@<seed-host>:26656"`
+5. Start: `localchaind start`
+
+The PEX reactor will automatically discover and connect to all validators.
+
 ## Project Structure
 
 ```
 localchain/
+├── chain/                    ← Cosmos SDK chain source (Go)
+│   ├── app/                  ← Chain app setup (staking, gov, IBC, records)
+│   ├── cmd/localchaind/      ← CLI entry point
+│   ├── proto/                ← Protobuf definitions
+│   ├── x/records/            ← Custom records module
+│   ├── go.mod / go.sum       ← Go dependencies
+│   └── Makefile              ← Go build targets
 ├── dashboard/
 │   ├── backend/
 │   │   ├── middleware/          # Security pipeline (validation, sanitization, scanning, audit)
@@ -288,6 +402,16 @@ localchain/
 │   │   └── package.json
 │   └── shared/
 │       └── config.js            # Centralized configuration
+├── docker/
+│   ├── Dockerfile.chain         # Multi-stage Go build for localchaind
+│   ├── docker-compose.yml       # Multi-validator testnet
+│   ├── seed-node/               # Seed node Dockerfile + entrypoint
+│   ├── validator/               # Validator Dockerfile + entrypoint
+│   ├── api-gateway/             # Express API Dockerfile
+│   ├── dashboard/               # Next.js frontend Dockerfile
+│   └── generate-genesis.sh      # Genesis assembly script
+├── config/
+│   └── config.toml.template     # P2P-ready Tendermint config
 ├── watchdog/
 │   ├── watchdog.js              # Auto-recovery monitor
 │   ├── rules.json               # Configurable check rules
@@ -299,6 +423,7 @@ localchain/
 ├── ecosystem.config.js          # PM2 process definitions
 ├── start.sh                     # Mac/Linux launcher
 ├── start.ps1                    # Windows launcher
+├── Makefile                     # Top-level build + testnet targets
 └── .gitignore
 ```
 

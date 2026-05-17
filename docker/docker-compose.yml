@@ -1,0 +1,211 @@
+# ─────────────────────────────────────────────────────────────
+# LocalChain — Docker Compose Multi-Validator Testnet
+#
+# Usage:
+#   make testnet-up       # Start the testnet
+#   make testnet-down     # Stop and remove containers
+#   make testnet-logs     # Tail all logs
+#   make testnet-status   # Show container status
+#   make testnet-clean    # Remove all data volumes
+#
+# Architecture:
+#   seed-node     — PEX seed for peer discovery (port 26656)
+#   validator-1   — Validator + REST API (ports 26660/1317)
+#   validator-2   — Validator (ports 26664/1320)
+#   validator-3   — Validator (ports 26668/1323)
+#   validator-4   — Validator (ports 26672/1326)
+#   api-gateway   — Express API proxy (port 4000)
+#   dashboard     — Next.js frontend (port 3000)
+# ─────────────────────────────────────────────────────────────
+
+services:
+
+  # ── Seed Node ─────────────────────────────────────────────
+  seed-node:
+    build:
+      context: ..
+      dockerfile: docker/seed-node/Dockerfile
+    container_name: lc-seed
+    volumes:
+      - seed-data:/root/.localchaind
+      - ./genesis/genesis.json:/genesis/genesis.json:ro
+    environment:
+      - NODE_NAME=seed-node
+      - SEEDS=
+      - PERSISTENT_PEERS=
+    ports:
+      - "26656:26656"
+    networks:
+      - localchain
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:26657/status"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ── Validator 1 ───────────────────────────────────────────
+  validator-1:
+    build:
+      context: ..
+      dockerfile: docker/validator/Dockerfile
+    container_name: lc-validator-1
+    volumes:
+      - validator-1-data:/root/.localchaind
+      - ./genesis/genesis.json:/genesis/genesis.json:ro
+    environment:
+      - NODE_NAME=validator-1
+      - MONIKER=validator-1
+      - SEEDS=seed-node:26656
+      - PERSISTENT_PEERS=
+    ports:
+      - "26660:26656"
+      - "26657:26657"
+      - "1317:1317"
+    networks:
+      - localchain
+    depends_on:
+      seed-node:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:26657/status"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ── Validator 2 ───────────────────────────────────────────
+  validator-2:
+    build:
+      context: ..
+      dockerfile: docker/validator/Dockerfile
+    container_name: lc-validator-2
+    volumes:
+      - validator-2-data:/root/.localchaind
+      - ./genesis/genesis.json:/genesis/genesis.json:ro
+    environment:
+      - NODE_NAME=validator-2
+      - MONIKER=validator-2
+      - SEEDS=seed-node:26656
+      - PERSISTENT_PEERS=
+    ports:
+      - "26664:26656"
+      - "26658:26657"
+      - "1320:1317"
+    networks:
+      - localchain
+    depends_on:
+      seed-node:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:26657/status"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ── Validator 3 ───────────────────────────────────────────
+  validator-3:
+    build:
+      context: ..
+      dockerfile: docker/validator/Dockerfile
+    container_name: lc-validator-3
+    volumes:
+      - validator-3-data:/root/.localchaind
+      - ./genesis/genesis.json:/genesis/genesis.json:ro
+    environment:
+      - NODE_NAME=validator-3
+      - MONIKER=validator-3
+      - SEEDS=seed-node:26656
+      - PERSISTENT_PEERS=
+    ports:
+      - "26668:26656"
+      - "26659:26657"
+      - "1323:1317"
+    networks:
+      - localchain
+    depends_on:
+      seed-node:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:26657/status"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ── Validator 4 ───────────────────────────────────────────
+  validator-4:
+    build:
+      context: ..
+      dockerfile: docker/validator/Dockerfile
+    container_name: lc-validator-4
+    volumes:
+      - validator-4-data:/root/.localchaind
+      - ./genesis/genesis.json:/genesis/genesis.json:ro
+    environment:
+      - NODE_NAME=validator-4
+      - MONIKER=validator-4
+      - SEEDS=seed-node:26656
+      - PERSISTENT_PEERS=
+    ports:
+      - "26672:26656"
+      - "26661:26657"
+      - "1326:1317"
+    networks:
+      - localchain
+    depends_on:
+      seed-node:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:26657/status"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ── API Gateway ───────────────────────────────────────────
+  api-gateway:
+    build:
+      context: ../dashboard/backend
+      dockerfile: ../../../docker/api-gateway/Dockerfile
+    container_name: lc-api
+    ports:
+      - "4000:4000"
+    environment:
+      - API_PORT=4000
+      - API_HOST=0.0.0.0
+      - COSMOS_REST=http://validator-1:1317
+      - TENDERMINT_RPC=http://validator-1:26657
+      - KNOWN_NODES=validator-1,validator-2,validator-3,validator-4
+    networks:
+      - localchain
+    depends_on:
+      validator-1:
+        condition: service_healthy
+
+  # ── Dashboard Frontend ────────────────────────────────────
+  dashboard:
+    build:
+      context: ../dashboard/frontend
+      dockerfile: ../../../docker/dashboard/Dockerfile
+    container_name: lc-dashboard
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:4000
+    networks:
+      - localchain
+    depends_on:
+      - api-gateway
+
+networks:
+  localchain:
+    driver: bridge
+
+volumes:
+  seed-data:
+  validator-1-data:
+  validator-2-data:
+  validator-3-data:
+  validator-4-data:

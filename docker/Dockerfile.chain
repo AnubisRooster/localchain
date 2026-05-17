@@ -1,0 +1,51 @@
+# ─────────────────────────────────────────────────────────────
+# LocalChain – Multi-stage Docker Build
+# Stage 1: Build localchaind from Go source
+# Stage 2: Minimal runtime image
+# ─────────────────────────────────────────────────────────────
+
+# ── Build stage ──────────────────────────────────────────────
+FROM golang:1.25-bookworm AS builder
+
+WORKDIR /src
+
+# Copy go mod files first for layer caching
+COPY chain/go.mod chain/go.sum ./
+RUN go mod download
+
+# Copy the rest of the chain source
+COPY chain/ ./
+
+# Build the binary
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+    -ldflags '-w -s' \
+    -o /usr/local/bin/localchaind \
+    ./cmd/localchaind
+
+# ── Runtime stage ────────────────────────────────────────────
+FROM debian:bookworm-slim
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    ca-certificates \
+    jq \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /usr/local/bin/localchaind /usr/local/bin/localchaind
+
+RUN chmod +x /usr/local/bin/localchaind
+
+# Default home directory
+ENV CHAIN_HOME=/root/.localchaind
+
+# Ports
+# 26656 = P2P
+# 26657 = Tendermint RPC
+# 1317  = Cosmos REST (lcd)
+# 26660 = Prometheus metrics
+# 9090  = gRPC
+EXPOSE 26656 26657 1317 26660 9090
+
+ENTRYPOINT ["localchaind"]
+CMD ["start"]

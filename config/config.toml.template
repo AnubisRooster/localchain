@@ -1,0 +1,83 @@
+# ─────────────────────────────────────────────────────────────
+# LocalChain – Tendermint P2P Config Template
+#
+# This template is used as the base for all validator nodes.
+# The entrypoint scripts modify specific values per-node.
+# ─────────────────────────────────────────────────────────────
+
+[p2p]
+
+# Listen on all interfaces for P2P connections
+laddr = "tcp://0.0.0.0:26656"
+
+# External address — set by entrypoint script
+# Format: <public-ip>:26656
+external_address = ""
+
+# Seed nodes — comma-separated list of node IDs
+# Format: <node-id>@<host>:26656
+seeds = ""
+
+# Persistent peers — comma-separated list
+persistent_peers = ""
+
+# Peer exchange reactor
+pex = true
+
+# Seed mode — only for dedicated seed nodes
+seed_mode = false
+
+# Max peers
+max_num_inbound_peers = 40
+max_num_outbound_peers = 10
+
+# Allow Docker NAT duplicate IPs
+allow_duplicate_ip = true
+
+# Relaxed address routing for private networks
+addr_book_strict = false
+
+# Connection timeouts
+handshake_timeout = "20s"
+dial_timeout = "3s"
+
+[rpc]
+
+# Listen on all interfaces for RPC
+laddr = "tcp://0.0.0.0:26657"
+
+# CORS — allow all for testnet
+cors_allowed_origins = ["*"]
+cors_allowed_methods = ["HEAD", "GET", "POST"]
+cors_allowed_headers = ["Origin", "Accept", "Content-Type", "X-Requested-With", "X-Server-Time"]
+
+# Max connections
+max_open_connections = 900
+
+[consensus]
+
+# Faster block times for testnet
+timeout_propose = "1s"
+timeout_propose_delta = "200ms"
+timeout_prevote = "500ms"
+timeout_prevote_delta = "200ms"
+timeout_precommit = "500ms"
+timeout_precommit_delta = "200ms"
+timeout_commit = "2s"
+
+# Create blocks even without txs
+create_empty_blocks = true
+create_empty_blocks_interval = "0s"
+
+[mempool]
+
+type = "flood"
+size = 5000
+broadcast = true
+recheck = true
+
+[instrumentation]
+
+# Enable Prometheus metrics
+prometheus = true
+prometheus_listen_addr = ":26660"
