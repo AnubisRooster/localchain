@@ -17,13 +17,36 @@ func (q queryServer) ListRecords(ctx context.Context, req *types.QueryListRecord
 	}
 
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
+
+	limit := uint64(100)
+	offset := uint64(0)
+	if req.Pagination != nil {
+		if req.Pagination.Limit > 0 {
+			limit = req.Pagination.Limit
+		}
+		offset = req.Pagination.Offset
+	}
+
 	var records []types.Record
+	var skipped uint64
+	var total uint64
 
 	err := q.k.Records.Walk(sdkCtx, nil, func(key uint64, value types.Record) (stop bool, err error) {
-		// Filter by creator if specified
 		if req.Creator != "" && value.Creator != req.Creator {
 			return false, nil
 		}
+
+		total++
+
+		if skipped < offset {
+			skipped++
+			return false, nil
+		}
+
+		if uint64(len(records)) >= limit {
+			return true, nil
+		}
+
 		records = append(records, value)
 		return false, nil
 	})
@@ -34,6 +57,9 @@ func (q queryServer) ListRecords(ctx context.Context, req *types.QueryListRecord
 
 	return &types.QueryListRecordsResponse{
 		Records: records,
+		Pagination: &types.PageResponse{
+			Total: total,
+		},
 	}, nil
 }
 

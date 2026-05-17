@@ -103,9 +103,9 @@ Actions: auto-restart via PM2 with cooldown (60s) and max restart cap (5/hr) to 
 - **PM2** (installed automatically by `start.sh`)
 - **Tailscale** (optional, for multi-node discovery)
 
-### Option 1: Docker Multi-Validator Testnet (Recommended)
+### Option 1: Docker Testnet
 
-Spin up a 4-validator testnet with seed node, API gateway, and dashboard:
+Start a single-validator dev testnet with API gateway and dashboard:
 
 ```bash
 # Start the testnet
@@ -124,7 +124,11 @@ make testnet-down
 make testnet-clean
 ```
 
-This builds `localchaind` from source inside Docker, generates a genesis with 4 validators, and starts the full network.
+For a multi-validator production testnet (4 validators + seed node + monitoring), use:
+
+```bash
+docker compose -f docker/docker-compose.prod.yml up -d
+```
 
 ### Option 2: Single-Node Launch (Mac / Linux)
 

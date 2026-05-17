@@ -31,6 +31,9 @@ func (r Record) Validate() error {
 }
 
 // NewRecord creates a new Record from a MsgCreateRecord
+// NOTE: Proto fields Summary, Content, ContentType, FileName, Tags, Labels, ContentHash
+// are defined in tx.proto but tx.pb.go is stale. Run `make proto-gen` to regenerate.
+// Until then, these fields are extracted from the Data JSON payload.
 func NewRecord(id uint64, msg *MsgCreateRecord, timestamp int64) Record {
 	return Record{
 		Id:        id,

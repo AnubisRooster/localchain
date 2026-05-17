@@ -39,14 +39,6 @@ class ErrorBoundary extends Component {
                   {this.state.error.stack}
                 </pre>
               )}
-              {this.props.onRetry && (
-                <button
-                  onClick={() => this.setState({ hasError: false, error: null, errorInfo: null })}
-                  className="mt-3 rounded bg-red-500/20 px-4 py-2 text-sm font-medium text-red-400 hover:bg-red-500/30 transition-colors"
-                >
-                  Try Again
-                </button>
-              )}
             </div>
           </div>
         </div>

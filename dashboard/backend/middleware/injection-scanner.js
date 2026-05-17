@@ -31,26 +31,19 @@ const DEFAULT_WHITELIST = [
   /export\s+(default|const|function|class)\b/,
 ];
 
-function isWhitelisted(text, whitelist = DEFAULT_WHITELIST) {
-  for (const pattern of whitelist) {
-    if (pattern.test(text)) return true;
-  }
-  return false;
-}
-
 function scanForInjections(text, whitelist = DEFAULT_WHITELIST) {
   const findings = [];
 
   for (const pattern of INJECTION_PATTERNS) {
-    if (isWhitelisted(text, whitelist)) continue;
-
     const matches = text.match(pattern.regex);
     if (matches) {
+      const matchedText = matches[0];
+      if (whitelist.some((wp) => wp.test(matchedText))) continue;
       findings.push({
         type: "injection",
         pattern: pattern.name,
         severity: pattern.severity,
-        matched: matches[0],
+        matched: matchedText,
         index: matches.index,
       });
     }
@@ -63,15 +56,15 @@ function scanForPoisoning(text, whitelist = DEFAULT_WHITELIST) {
   const findings = [];
 
   for (const indicator of POISONING_INDICATORS) {
-    if (isWhitelisted(text, whitelist)) continue;
-
     const matches = text.match(indicator.regex);
     if (matches) {
+      const matchedText = matches[0];
+      if (whitelist.some((wp) => wp.test(matchedText))) continue;
       findings.push({
         type: "poisoning",
         indicator: indicator.name,
         severity: indicator.severity,
-        matched: matches[0],
+        matched: matchedText,
         index: matches.index,
       });
     }
@@ -180,7 +173,6 @@ module.exports = {
   INJECTION_PATTERNS,
   POISONING_INDICATORS,
   DEFAULT_WHITELIST,
-  isWhitelisted,
   scanForInjections,
   scanForPoisoning,
   scanContent,
