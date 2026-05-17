@@ -1,3 +1,8 @@
+// Package types provides query types that should be proto-generated.
+// TODO: Delete this file once proto regeneration is working.
+// The query.proto defines GetRecord RPC but query.pb.go is stale and missing
+// the generated QueryGetRecordRequest/Response types. This file provides them
+// manually until `make proto-gen` can be run successfully.
 package types
 
 import (

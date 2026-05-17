@@ -8,6 +8,8 @@ import (
 )
 
 // RecordValueCodec is a custom codec for encoding/decoding Record structs
+// TODO: Switch to proto.Marshal/proto.Unmarshal once proto types are regenerated.
+// JSON is used temporarily because the hand-written Record struct lacks protobuf methods.
 type RecordValueCodec struct{}
 
 func (RecordValueCodec) Encode(value types.Record) ([]byte, error) {
