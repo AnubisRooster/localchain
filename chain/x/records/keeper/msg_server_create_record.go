@@ -23,6 +23,11 @@ func (k msgServer) CreateRecord(ctx context.Context, msg *types.MsgCreateRecord)
 	// Create the record
 	record := types.NewRecord(recordID, msg, sdk.UnwrapSDKContext(ctx).BlockTime().Unix())
 
+	// Validate the record before storing
+	if err := record.Validate(); err != nil {
+		return nil, errorsmod.Wrap(err, "invalid record")
+	}
+
 	// Store the record
 	if err := k.Records.Set(ctx, recordID, record); err != nil {
 		return nil, errorsmod.Wrap(err, "failed to store record")

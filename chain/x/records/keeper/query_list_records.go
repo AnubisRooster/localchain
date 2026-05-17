@@ -11,6 +11,8 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+const MaxPageLimit = uint64(1000)
+
 func (q queryServer) ListRecords(ctx context.Context, req *types.QueryListRecordsRequest) (*types.QueryListRecordsResponse, error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "invalid request")
@@ -25,6 +27,9 @@ func (q queryServer) ListRecords(ctx context.Context, req *types.QueryListRecord
 			limit = req.Pagination.Limit
 		}
 		offset = req.Pagination.Offset
+	}
+	if limit > MaxPageLimit {
+		limit = MaxPageLimit
 	}
 
 	var records []types.Record
@@ -44,7 +49,7 @@ func (q queryServer) ListRecords(ctx context.Context, req *types.QueryListRecord
 		}
 
 		if uint64(len(records)) >= limit {
-			return true, nil
+			return false, nil
 		}
 
 		records = append(records, value)
