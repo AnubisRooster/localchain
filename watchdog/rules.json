@@ -1,0 +1,51 @@
+{
+  "rules": [
+    {
+      "id": "stale-chain",
+      "description": "No new blocks produced within threshold",
+      "enabled": true,
+      "check": "staleBlocks",
+      "thresholdMinutes": 5,
+      "action": "restart"
+    },
+    {
+      "id": "high-cpu",
+      "description": "System CPU load exceeds threshold",
+      "enabled": true,
+      "check": "cpuLoad",
+      "thresholdPercent": 80,
+      "action": "restart"
+    },
+    {
+      "id": "high-memory",
+      "description": "System memory usage exceeds threshold",
+      "enabled": true,
+      "check": "memoryUsage",
+      "thresholdPercent": 80,
+      "action": "restart"
+    },
+    {
+      "id": "process-missing",
+      "description": "localchaind process is not running",
+      "enabled": true,
+      "check": "processAlive",
+      "processName": "localchaind",
+      "action": "start"
+    },
+    {
+      "id": "rpc-unresponsive",
+      "description": "Tendermint RPC is not responding",
+      "enabled": true,
+      "check": "rpcHealth",
+      "endpoint": "http://localhost:26657/status",
+      "timeoutMs": 5000,
+      "action": "restart"
+    }
+  ],
+  "settings": {
+    "checkIntervalMs": 5000,
+    "restartCooldownMs": 60000,
+    "maxRestartsPerHour": 5,
+    "logFile": "watchdog.log"
+  }
+}

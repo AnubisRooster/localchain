@@ -1,0 +1,45 @@
+# ─────────────────────────────────────────────
+# Prometheus Alerting Rules – LocalChain
+# ─────────────────────────────────────────────
+
+groups:
+  - name: localchain_alerts
+    rules:
+      # No new blocks for 2 minutes
+      - alert: StaleChain
+        expr: increase(tendermint_consensus_height[2m]) == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Chain is stale – no new blocks in 2 minutes"
+          description: "Node {{ $labels.instance }} has not produced new blocks."
+
+      # Fewer than expected peers
+      - alert: LowPeerCount
+        expr: tendermint_p2p_peers < 1
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low peer count"
+          description: "Node {{ $labels.instance }} has {{ $value }} peers."
+
+      # High memory usage (>80%)
+      - alert: HighMemoryUsage
+        expr: process_resident_memory_bytes / (1024 * 1024 * 1024) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on node"
+          description: "Node {{ $labels.instance }} using {{ $value }}GB RAM."
+
+      # Block time too slow
+      - alert: SlowBlockTime
+        expr: rate(tendermint_consensus_block_interval_seconds_sum[5m]) / rate(tendermint_consensus_block_interval_seconds_count[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Block time exceeding 10 seconds"

@@ -1,0 +1,113 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "localchain-overview",
+    "title": "LocalChain Overview",
+    "tags": ["localchain", "cosmos", "tendermint"],
+    "timezone": "browser",
+    "refresh": "5s",
+    "time": { "from": "now-1h", "to": "now" },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Block Height",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+        "targets": [
+          {
+            "expr": "tendermint_consensus_height",
+            "legendFormat": "Height"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": { "thresholds": { "steps": [{ "color": "green", "value": 0 }] } }
+        }
+      },
+      {
+        "id": 2,
+        "title": "Connected Peers",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+        "targets": [
+          {
+            "expr": "tendermint_p2p_peers",
+            "legendFormat": "Peers"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Validators",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+        "targets": [
+          {
+            "expr": "tendermint_consensus_validators",
+            "legendFormat": "Active Validators"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Transactions Per Block",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+        "targets": [
+          {
+            "expr": "rate(tendermint_consensus_total_txs[1m])",
+            "legendFormat": "TPS"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Block Height Over Time",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+        "targets": [
+          {
+            "expr": "tendermint_consensus_height",
+            "legendFormat": "Block Height"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Block Interval (seconds)",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+        "targets": [
+          {
+            "expr": "rate(tendermint_consensus_block_interval_seconds_sum[1m]) / rate(tendermint_consensus_block_interval_seconds_count[1m])",
+            "legendFormat": "Avg Block Time"
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Memory Usage (MB)",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+        "targets": [
+          {
+            "expr": "process_resident_memory_bytes / 1024 / 1024",
+            "legendFormat": "{{ instance }}"
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Peer Count Over Time",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+        "targets": [
+          {
+            "expr": "tendermint_p2p_peers",
+            "legendFormat": "{{ instance }}"
+          }
+        ]
+      }
+    ]
+  },
+  "overwrite": true
+}

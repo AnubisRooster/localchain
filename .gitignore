@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Data & Logs
+data/
+*.db
+*.log
+
+# Build outputs
+.next/
+dist/
+build/
+out/
+
+# Claude worktrees
+.claude/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# PM2
+.pm2/
+
+# Generated files
+*.pptx
+coverage/

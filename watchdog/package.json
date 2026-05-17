@@ -1,0 +1,13 @@
+{
+  "name": "localchain-watchdog",
+  "version": "1.0.0",
+  "description": "LocalChain node watchdog with auto-recovery",
+  "main": "watchdog.js",
+  "scripts": {
+    "start": "node watchdog.js",
+    "test": "jest --verbose --forceExit"
+  },
+  "devDependencies": {
+    "jest": "^30.3.0"
+  }
+}

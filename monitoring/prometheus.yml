@@ -1,0 +1,24 @@
+# ─────────────────────────────────────────────
+# Prometheus – LocalChain Monitoring
+# ─────────────────────────────────────────────
+
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+rule_files:
+  - "alerts.yml"
+
+scrape_configs:
+  # Cosmos SDK / Tendermint metrics (default :26660)
+  - job_name: "localchain-node"
+    static_configs:
+      - targets: ["localhost:26660"]
+    metrics_path: /metrics
+
+  # Dashboard backend health
+  - job_name: "localchain-api"
+    static_configs:
+      - targets: ["localhost:4000"]
+    metrics_path: /api/metrics
+    scrape_interval: 10s
