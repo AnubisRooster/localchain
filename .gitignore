@@ -1,3 +1,19 @@
+# Go / Chain
+chain/vendor/
+chain/build/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+chain/*.d
+localchaind
+localchaind-*
+
+# OpenCode (personal config, not for repo)
+.opencode/
+
 # Dependencies
 node_modules/
 package-lock.json

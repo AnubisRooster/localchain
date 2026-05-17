@@ -1,0 +1,17 @@
+syntax = "proto3";
+package localchain.records.v1;
+
+import "amino/amino.proto";
+import "gogoproto/gogo.proto";
+import "localchain/records/v1/params.proto";
+
+option go_package = "localchain/x/records/types";
+
+// GenesisState defines the records module's genesis state.
+message GenesisState {
+  // params defines all the parameters of the module.
+  Params params = 1 [
+    (gogoproto.nullable) = false,
+    (amino.dont_omitempty) = true
+  ];
+}
