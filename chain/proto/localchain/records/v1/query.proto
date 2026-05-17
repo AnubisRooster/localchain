@@ -10,33 +10,49 @@ import "localchain/records/v1/params.proto";
 
 option go_package = "localchain/x/records/types";
 
-// Query defines the gRPC querier service.
 service Query {
-  // Parameters queries the parameters of the module.
   rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
     option (google.api.http).get = "/localchain/records/v1/params";
   }
 
-  // ListRecords Queries a list of ListRecords items.
   rpc ListRecords(QueryListRecordsRequest) returns (QueryListRecordsResponse) {
     option (google.api.http).get = "/localchain/records/v1/list_records";
   }
+
+  rpc GetRecord(QueryGetRecordRequest) returns (QueryGetRecordResponse) {
+    option (google.api.http).get = "/localchain/records/v1/record/{id}";
+  }
 }
 
-// QueryParamsRequest is request type for the Query/Params RPC method.
-message QueryParamsRequest {}
-
-// QueryParamsResponse is response type for the Query/Params RPC method.
-message QueryParamsResponse {
-  // params holds all the parameters of this module.
-  Params params = 1 [
-    (gogoproto.nullable) = false,
-    (amino.dont_omitempty) = true
-  ];
+// Record represents a stored record on-chain
+message Record {
+  uint64 id = 1;
+  string creator = 2;
+  string summary = 3;
+  string content = 4;
+  string content_type = 5;
+  string file_name = 6;
+  string tags = 7;
+  string labels = 8;
+  string data = 9;
+  string content_hash = 10;
+  int64 created_at = 11;
 }
 
-// QueryListRecordsRequest defines the QueryListRecordsRequest message.
-message QueryListRecordsRequest {}
+message QueryListRecordsRequest {
+  cosmos.base.query.v1beta1.PageRequest pagination = 1;
+  string creator = 2;
+}
 
-// QueryListRecordsResponse defines the QueryListRecordsResponse message.
-message QueryListRecordsResponse {}
+message QueryListRecordsResponse {
+  repeated Record records = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryGetRecordRequest {
+  uint64 id = 1;
+}
+
+message QueryGetRecordResponse {
+  Record record = 1 [(gogoproto.nullable) = false];
+}

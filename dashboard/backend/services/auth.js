@@ -205,7 +205,17 @@ function getTlsConfig() {
 }
 
 function requireAuth(req, res, next) {
-  const skipPaths = ["/health", "/api/broadcast/status", "/api/nodes/select", "/api/nodes/pool/stats", "/api/auth/validate"];
+  const skipPaths = [
+    "/health",
+    "/api/broadcast/status",
+    "/api/nodes/select",
+    "/api/nodes/pool/stats",
+    "/api/auth/validate",
+    "/api/metrics",
+    "/api/metrics/summary",
+    "/api/upnp/status",
+    "/api/tenants/stats",
+  ];
   if (skipPaths.includes(req.path)) return next();
 
   const apiKey = req.headers["x-api-key"];

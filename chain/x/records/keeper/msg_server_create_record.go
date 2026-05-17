@@ -6,14 +6,29 @@ import (
 	"localchain/x/records/types"
 
 	errorsmod "cosmossdk.io/errors"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 func (k msgServer) CreateRecord(ctx context.Context, msg *types.MsgCreateRecord) (*types.MsgCreateRecordResponse, error) {
 	if _, err := k.addressCodec.StringToBytes(msg.Creator); err != nil {
-		return nil, errorsmod.Wrap(err, "invalid authority address")
+		return nil, errorsmod.Wrap(err, "invalid creator address")
 	}
 
-	// TODO: Handle the message
+	// Generate next record ID
+	recordID, err := k.NextRecordID(ctx)
+	if err != nil {
+		return nil, errorsmod.Wrap(err, "failed to generate record ID")
+	}
 
-	return &types.MsgCreateRecordResponse{}, nil
+	// Create the record
+	record := types.NewRecord(recordID, msg, sdk.UnwrapSDKContext(ctx).BlockTime().Unix())
+
+	// Store the record
+	if err := k.Records.Set(ctx, recordID, record); err != nil {
+		return nil, errorsmod.Wrap(err, "failed to store record")
+	}
+
+	return &types.MsgCreateRecordResponse{
+		RecordId: recordID,
+	}, nil
 }

@@ -862,6 +862,35 @@ app.get("/api/metrics/summary", (_req, res) => {
 // Start
 // ══════════════════════════════════════════════════════════
 if (require.main === module) {
+  // ── Security warnings on startup ──────────────────────────
+  const warnings = [];
+
+  if (config.keyringBackend === "test") {
+    warnings.push("⚠ KEYRING_BACKEND=test: Keys stored unencrypted on disk. Use 'file' or 'os' for production.");
+  }
+
+  if (!process.env.VALIDATOR_SHARED_SECRET || process.env.VALIDATOR_SHARED_SECRET === "change-this-to-a-secure-secret") {
+    warnings.push("⚠ VALIDATOR_SHARED_SECRET: Using default value. Node registration is unprotected.");
+  }
+
+  if (!process.env.TLS_ENABLED || process.env.TLS_ENABLED !== "1") {
+    warnings.push("⚠ TLS not enabled: API traffic is unencrypted. Set TLS_ENABLED=1 for production.");
+  }
+
+  if (!process.env.AUTH_DB_PATH) {
+    warnings.push("⚠ AUTH_DB_PATH not set: Using default path. Configure for production deployments.");
+  }
+
+  if (warnings.length > 0) {
+    console.log("");
+    console.log("═══════════════════════════════════════════════════════");
+    console.log("  SECURITY WARNINGS");
+    console.log("═══════════════════════════════════════════════════════");
+    warnings.forEach((w) => console.log(`  ${w}`));
+    console.log("═══════════════════════════════════════════════════════");
+    console.log("");
+  }
+
   const tlsConfig = getTlsConfig();
 
   if (tlsConfig) {

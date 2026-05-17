@@ -179,6 +179,7 @@ func (m *MsgCreateRecord) GetData() string {
 
 // MsgCreateRecordResponse defines the MsgCreateRecordResponse message.
 type MsgCreateRecordResponse struct {
+	RecordId uint64 `protobuf:"varint,1,opt,name=record_id,json=recordId,proto3" json:"record_id,omitempty"`
 }
 
 func (m *MsgCreateRecordResponse) Reset()         { *m = MsgCreateRecordResponse{} }
@@ -213,6 +214,13 @@ func (m *MsgCreateRecordResponse) XXX_DiscardUnknown() {
 }
 
 var xxx_messageInfo_MsgCreateRecordResponse proto.InternalMessageInfo
+
+func (m *MsgCreateRecordResponse) GetRecordId() uint64 {
+	if m != nil {
+		return m.RecordId
+	}
+	return 0
+}
 
 func init() {
 	proto.RegisterType((*MsgUpdateParams)(nil), "localchain.records.v1.MsgUpdateParams")

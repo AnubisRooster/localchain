@@ -1,6 +1,7 @@
 package keeper
 
 import (
+	"context"
 	"fmt"
 
 	"cosmossdk.io/collections"
@@ -21,6 +22,11 @@ type Keeper struct {
 
 	Schema collections.Schema
 	Params collections.Item[types.Params]
+
+	// Records stores all records indexed by ID
+	Records collections.Map[uint64, types.Record]
+	// RecordCount is an auto-incrementing sequence for record IDs
+	RecordCount collections.Sequence
 }
 
 func NewKeeper(
@@ -42,7 +48,9 @@ func NewKeeper(
 		addressCodec: addressCodec,
 		authority:    authority,
 
-		Params: collections.NewItem(sb, types.ParamsKey, "params", codec.CollValue[types.Params](cdc)),
+		Params:      collections.NewItem(sb, types.ParamsKey, "params", codec.CollValue[types.Params](cdc)),
+		Records:     collections.NewMap(sb, types.RecordKey, "records", collections.Uint64Key, RecordValueCodec{}),
+		RecordCount: collections.NewSequence(sb, types.RecordCountKey, "record_count"),
 	}
 
 	schema, err := sb.Build()
@@ -57,4 +65,9 @@ func NewKeeper(
 // GetAuthority returns the module's authority.
 func (k Keeper) GetAuthority() []byte {
 	return k.authority
+}
+
+// NextRecordID generates and returns the next record ID
+func (k Keeper) NextRecordID(ctx context.Context) (uint64, error) {
+	return k.RecordCount.Next(ctx)
 }

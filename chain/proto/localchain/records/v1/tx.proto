@@ -14,41 +14,25 @@ option go_package = "localchain/x/records/types";
 service Msg {
   option (cosmos.msg.v1.service) = true;
 
-  // UpdateParams defines a (governance) operation for updating the module
-  // parameters. The authority defaults to the x/gov module account.
   rpc UpdateParams(MsgUpdateParams) returns (MsgUpdateParamsResponse);
-
-  // CreateRecord defines the CreateRecord RPC.
   rpc CreateRecord(MsgCreateRecord) returns (MsgCreateRecordResponse);
 }
-
-// MsgUpdateParams is the Msg/UpdateParams request type.
-message MsgUpdateParams {
-  option (cosmos.msg.v1.signer) = "authority";
-  option (amino.name) = "localchain/x/records/MsgUpdateParams";
-
-  // authority is the address that controls the module (defaults to x/gov unless overwritten).
-  string authority = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
-
-  // params defines the module parameters to update.
-
-  // NOTE: All parameters must be supplied.
-  Params params = 2 [
-    (gogoproto.nullable) = false,
-    (amino.dont_omitempty) = true
-  ];
-}
-
-// MsgUpdateParamsResponse defines the response structure for executing a
-// MsgUpdateParams message.
-message MsgUpdateParamsResponse {}
 
 // MsgCreateRecord defines the MsgCreateRecord message.
 message MsgCreateRecord {
   option (cosmos.msg.v1.signer) = "creator";
   string creator = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
   string data = 2;
+  string summary = 3;
+  string content = 4;
+  string content_type = 5;
+  string file_name = 6;
+  string tags = 7;
+  string labels = 8;
+  string content_hash = 9;
 }
 
 // MsgCreateRecordResponse defines the MsgCreateRecordResponse message.
-message MsgCreateRecordResponse {}
+message MsgCreateRecordResponse {
+  uint64 record_id = 1;
+}

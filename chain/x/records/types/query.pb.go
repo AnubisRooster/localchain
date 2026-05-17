@@ -116,6 +116,8 @@ func (m *QueryParamsResponse) GetParams() Params {
 
 // QueryListRecordsRequest defines the QueryListRecordsRequest message.
 type QueryListRecordsRequest struct {
+	Pagination *PageRequest `protobuf:"bytes,1,opt,name=pagination,proto3" json:"pagination,omitempty"`
+	Creator    string       `protobuf:"bytes,2,opt,name=creator,proto3" json:"creator,omitempty"`
 }
 
 func (m *QueryListRecordsRequest) Reset()         { *m = QueryListRecordsRequest{} }
@@ -151,8 +153,24 @@ func (m *QueryListRecordsRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_QueryListRecordsRequest proto.InternalMessageInfo
 
+func (m *QueryListRecordsRequest) GetPagination() *PageRequest {
+	if m != nil {
+		return m.Pagination
+	}
+	return nil
+}
+
+func (m *QueryListRecordsRequest) GetCreator() string {
+	if m != nil {
+		return m.Creator
+	}
+	return ""
+}
+
 // QueryListRecordsResponse defines the QueryListRecordsResponse message.
 type QueryListRecordsResponse struct {
+	Records    []Record `protobuf:"bytes,1,rep,name=records,proto3" json:"records"`
+	Pagination *PageResponse `protobuf:"bytes,2,opt,name=pagination,proto3" json:"pagination,omitempty"`
 }
 
 func (m *QueryListRecordsResponse) Reset()         { *m = QueryListRecordsResponse{} }
@@ -187,6 +205,20 @@ func (m *QueryListRecordsResponse) XXX_DiscardUnknown() {
 }
 
 var xxx_messageInfo_QueryListRecordsResponse proto.InternalMessageInfo
+
+func (m *QueryListRecordsResponse) GetRecords() []Record {
+	if m != nil {
+		return m.Records
+	}
+	return nil
+}
+
+func (m *QueryListRecordsResponse) GetPagination() *PageResponse {
+	if m != nil {
+		return m.Pagination
+	}
+	return nil
+}
 
 func init() {
 	proto.RegisterType((*QueryParamsRequest)(nil), "localchain.records.v1.QueryParamsRequest")

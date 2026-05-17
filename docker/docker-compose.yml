@@ -7,6 +7,7 @@
 #   make testnet-logs     # Tail all logs
 #   make testnet-status   # Show container status
 #   make testnet-clean    # Remove all data volumes
+#   make testnet-rebuild  # Rebuild images and restart
 #
 # Architecture:
 #   validator-1   — Single validator + REST API (ports 26657/1317)
@@ -14,7 +15,8 @@
 #   dashboard     — Next.js frontend (port 3000)
 #
 # Note: Single-validator testnet for development.
-# Multi-validator requires manual gentx coordination.
+# For multi-validator, use docker-compose.prod.yml or
+# run `make genesis NUM_VALIDATORS=4` and update compose.
 # ─────────────────────────────────────────────────────────────
 
 services:

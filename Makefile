@@ -46,12 +46,8 @@ testnet-up:
 	@$(COMPOSE) up -d --build
 	@echo ""
 	@echo "  Services:"
-	@echo "    Seed      : localhost:26656"
 	@echo "    Val-1 RPC : localhost:26657"
 	@echo "    Val-1 REST: localhost:1317"
-	@echo "    Val-2 RPC : localhost:26658"
-	@echo "    Val-3 RPC : localhost:26659"
-	@echo "    Val-4 RPC : localhost:26661"
 	@echo "    API       : localhost:4000"
 	@echo "    Dashboard : localhost:3000"
 	@echo ""
