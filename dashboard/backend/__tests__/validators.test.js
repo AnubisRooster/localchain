@@ -87,7 +87,7 @@ describe("GET /api/metrics", () => {
     expect(res.headers["content-type"]).toContain("text/plain");
     expect(res.text).toContain("localchain_api_requests_total");
     expect(res.text).toContain("localchain_api_errors_total");
-    expect(res.text).toContain("localchain_last_block_height");
+    expect(res.text).toContain("localchain_block_height");
     expect(res.text).toContain("localchain_system_mem_used_percent");
   });
 });
