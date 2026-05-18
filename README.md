@@ -5,30 +5,36 @@ A self-hosted, multi-validator blockchain with a dashboard, security pipeline, m
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    LocalChain Monorepo                       │
-├─────────────────────────────────────────────────────────────┤
-│                                                               │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐   │
-│  │   Next.js     │───▶│   Express    │───▶│  Cosmos SDK  │   │
-│  │  Frontend     │    │  API Server  │    │  localchaind │   │
-│  │  (port 3000)  │    │  (port 4000) │    │  (port 26657)│   │
-│  └──────────────┘    └──────────────┘    └──────────────┘   │
-│         │                   │                   │            │
-│         │            ┌──────┴──────┐            │            │
-│         │            │  Security   │            │            │
-│         │            │  Pipeline   │            │            │
-│         │            └─────────────┘            │            │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐   │
-│  │   Grafana    │    │  Prometheus  │    │   Watchdog   │   │
-│  │  (port 3001) │    │  (port 9090) │    │  (auto-fix)  │   │
-│  └──────────────┘    └──────────────┘    └──────────────┘   │
-│                                                               │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │  Docker Testnet: 4 Validators + Seed Node + API      │   │
-│  │  P2P: port 26656 | RPC: 26657 | REST: 1317           │   │
-│  └──────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                        LocalChain Monorepo                           │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐           │
+│  │   Next.js     │───▶│   Express    │───▶│  Cosmos SDK  │           │
+│  │  Frontend     │    │  API Server  │    │  localchaind │           │
+│  │  (port 3000)  │    │  (port 4000) │    │  (port 26657)│           │
+│  └──────────────┘    └──────────────┘    └──────────────┘           │
+│         │                   │                   │                    │
+│         │            ┌──────┴──────┐            │                    │
+│         │            │  Security   │            │                    │
+│         │            │  Pipeline   │            │                    │
+│         │            └─────────────┘            │                    │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐           │
+│  │   Grafana    │    │  Prometheus  │    │   Watchdog   │           │
+│  │  (port 3001) │    │  (port 9090) │    │  (port 3002) │           │
+│  └──────────────┘    └──────────────┘    └──────────────┘           │
+│                                                                       │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │  Docker Testnet: Validators + Seed Node + API + Dashboard    │   │
+│  │  P2P: port 26656 | RPC: 26657 | REST: 1317                  │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+│                                                                       │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │  Zero-Touch Join Flow                                         │   │
+│  │  Origin ──[join-token]──▶ New Node ──[bootstrap]──▶ Joined   │   │
+│  │  Network paths: Tailscale mesh | UPnP/public IP | LAN        │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Components
@@ -36,13 +42,13 @@ A self-hosted, multi-validator blockchain with a dashboard, security pipeline, m
 | Component | Port | Purpose |
 |-----------|------|---------|
 | **Next.js Frontend** | 3000 | Dashboard UI — blocks, transactions, nodes, security |
-| **Express API** | 4000 | Proxies Cosmos REST + Tendermint RPC, security middleware |
+| **Express API** | 4000 | Proxies Cosmos REST + Tendermint RPC, security middleware, bootstrap API |
 | **Cosmos REST** | 1317 | Cosmos SDK REST API (localchaind) |
 | **Tendermint RPC** | 26657 | Tendermint RPC endpoint |
 | **Tendermint P2P** | 26656 | Peer-to-peer consensus network |
 | **Prometheus** | 9090 | Metrics scraping and alerting |
 | **Grafana** | 3001 | Visualization dashboards |
-| **Watchdog** | — | Auto-recovery monitor for node health |
+| **Watchdog** | 3002 | Health endpoint + auto-recovery monitor for node health |
 | **Seed Node** | 26656 | PEX peer discovery for new validators |
 
 ## Features
@@ -93,6 +99,27 @@ Actions: auto-restart via PM2 with cooldown (60s) and max restart cap (5/hr) to 
 - **Grafana** dashboard (`monitoring/grafana-dashboard.json`) provides visual panels
 - **Alert rules** (`monitoring/alerts.yml`) define thresholds for notifications
 
+### Zero-Touch Node Joining
+
+Any device can join the chain from anywhere with a single command. Two connectivity paths work independently:
+
+- **Tailscale** — Private mesh network, NAT-traversing, stable IPs
+- **UPnP / Public IP** — Auto port-mapping for internet-reachable access
+
+```
+Origin Node                          Joining Node
+───────────                          ────────────
+make join-token                      ./join.sh <token>
+  │                                    │
+  ├─ Generates base64 token            ├─ Decodes token → API URLs + secret
+  │  with API URLs + secret            ├─ Finds reachable API endpoint
+  │                                    ├─ Fetches bootstrap bundle (genesis + peers)
+  │                                    ├─ Initializes chain with genesis
+  │                                    ├─ Configures CometBFT (peers, external_address)
+  │                                    ├─ Starts localchaind
+  │                                    └─ Registers with origin
+```
+
 ## Quick Start
 
 ### Prerequisites
@@ -101,7 +128,8 @@ Actions: auto-restart via PM2 with cooldown (60s) and max restart cap (5/hr) to 
 - **Go** >= 1.25 (for building `localchaind`)
 - **Docker** + **Docker Compose** (for multi-validator testnet)
 - **PM2** (installed automatically by `start.sh`)
-- **Tailscale** (optional, for multi-node discovery)
+- **jq** + **base64** (for the join script — usually pre-installed)
+- **Tailscale** (optional, for multi-node discovery across networks)
 
 ### Option 1: Docker Testnet
 
@@ -139,6 +167,23 @@ docker compose -f docker/docker-compose.prod.yml up -d
 
 This installs dependencies, builds the frontend, and starts all services via PM2.
 
+### Option 3: Join an Existing Network
+
+On the origin node, generate a join token:
+
+```bash
+make join-token
+# Follow the prompts to authenticate with an API key
+```
+
+On the new device, run the join script with the token:
+
+```bash
+./join.sh <token>
+```
+
+That's it. The script handles genesis download, CometBFT configuration, node startup, and registration automatically.
+
 ### Manual Setup
 
 ```bash
@@ -157,7 +202,7 @@ cd .. && pm2 start ecosystem.config.js && pm2 save
 
 ### Environment Variables
 
-All configuration lives in `dashboard/shared/config.js`. Override via environment:
+Configuration lives in `dashboard/shared/config.js`. Override via environment variables or a `.env` file (see `.env.example` for all options):
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -170,26 +215,38 @@ All configuration lives in `dashboard/shared/config.js`. Override via environmen
 | `TENDERMINT_RPC` | `http://localhost:26657` | Tendermint RPC endpoint |
 | `API_PORT` | `4000` | API server port |
 | `FRONTEND_PORT` | `3000` | Frontend port |
+| `DASHBOARD_PORT` | `3000` | Dashboard port (for join script URL derivation) |
 | `KNOWN_NODES` | `""` | Comma-separated node IPs |
+| `VALIDATOR_SHARED_SECRET` | *(none)* | Shared secret for validator node registration |
+| `UPNP_MAP_DASHBOARD` | `""` | Set to `1` to expose dashboard via UPnP |
 
 ## API Endpoints
 
 ### Chain Data
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/health` | Chain health status |
-| `GET` | `/api/records` | Query create-record transactions |
-| `POST` | `/api/records` | Submit a new record (with security pipeline) |
-| `GET` | `/api/blocks/latest` | Latest block + recent blocks |
-| `GET` | `/api/block/:height` | Block by height |
-| `GET` | `/api/tx/:hash` | Transaction by hash |
-| `GET` | `/api/txs` | Search transactions |
-| `GET` | `/api/validators` | Active validator list |
-| `GET` | `/api/nodes` | Node health aggregation |
-| `GET` | `/api/net_info` | Peer details |
-| `GET` | `/api/system` | System metrics |
-| `GET` | `/api/metrics` | Prometheus-format metrics |
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| `GET` | `/health` | None | Chain health status |
+| `GET` | `/api/records` | API key | Query create-record transactions |
+| `POST` | `/api/records` | API key | Submit a new record (with security pipeline) |
+| `GET` | `/api/blocks/latest` | API key | Latest block + recent blocks |
+| `GET` | `/api/block/:height` | API key | Block by height |
+| `GET` | `/api/tx/:hash` | API key | Transaction by hash |
+| `GET` | `/api/txs` | API key | Search transactions |
+| `GET` | `/api/validators` | API key | Active validator list |
+| `GET` | `/api/nodes` | API key | Node health aggregation |
+| `GET` | `/api/net_info` | API key | Peer details |
+| `GET` | `/api/system` | API key | System metrics |
+| `GET` | `/api/metrics` | None | Prometheus-format metrics |
+| `GET` | `/api/metrics/summary` | None | JSON metrics summary for dashboard |
+
+### Bootstrap & Joining
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| `GET` | `/api/genesis` | None | Serves the chain's genesis file |
+| `GET` | `/api/bootstrap` | Shared secret | Full bootstrap bundle (genesis + peers + API endpoints) |
+| `POST` | `/api/join-token` | API key | Generates a base64-encoded join token |
 
 ### Security
 
@@ -352,6 +409,16 @@ All validators share a common genesis and discover each other via the seed node'
 | `make testnet-rebuild` | Rebuild images from scratch and restart |
 | `make genesis` | Generate genesis for N validators (default: 4) |
 | `make genesis NUM_VALIDATORS=6` | Generate genesis for 6 validators |
+| `make join-token` | Generate a join token for new nodes |
+| `make join-build` | Build the Docker join image |
+| `make join` | Build join image and run a new node via Docker |
+| `make chain-build` | Build localchaind binary locally |
+| `make chain-install` | Install localchaind to $GOPATH/bin |
+| `make deploy` | One-command deploy (env=prod\|staging\|dev) |
+| `make backup` | Backup all data |
+| `make restore` | Restore from backup |
+| `make monitoring-up` | Start Prometheus + Grafana |
+| `make monitoring-down` | Stop monitoring stack |
 
 ### Port Mapping
 
@@ -371,11 +438,47 @@ All validators share a common genesis and discover each other via the seed node'
 
 ### Adding Remote Validators
 
-To join the network from a remote machine:
+#### Zero-Touch Join (Recommended)
+
+Generate a token on the origin node:
+
+```bash
+make join-token
+```
+
+On the new device, run:
+
+```bash
+./join.sh <token>
+```
+
+The script automatically handles genesis download, CometBFT configuration, node startup, and registration. Optional flags:
+
+```bash
+./join.sh <token> [OPTIONS]
+
+Options:
+  --moniker <name>     Set a custom node name (default: auto-generated)
+  --home <path>        Chain home directory (default: ~/.localchaind)
+  --p2p-port <port>    P2P port (default: 26656)
+  --rpc-port <port>    RPC port (default: 26657)
+  --rest-port <port>   REST port (default: 1317)
+  --no-start           Configure only, don't start the node
+  --dry-run            Show what would be done without executing
+```
+
+For Docker-based joining:
+
+```bash
+make join
+# Paste the token when prompted
+```
+
+#### Manual Setup (Fallback)
 
 1. Build `localchaind` from source (`make chain-install`)
 2. Initialize: `localchaind init my-validator --chain-id localchain`
-3. Fetch genesis from a running node: `curl http://<seed-host>:26657/genesis | jq .result.genesis > ~/.localchaind/config/genesis.json`
+3. Fetch genesis from a running node: `curl http://<host>:4000/api/genesis > ~/.localchaind/config/genesis.json`
 4. Configure seeds: edit `~/.localchaind/config/config.toml`, set `seeds = "<node-id>@<seed-host>:26656"`
 5. Start: `localchaind start`
 
@@ -395,13 +498,15 @@ localchain/
 ├── dashboard/
 │   ├── backend/
 │   │   ├── middleware/          # Security pipeline (validation, sanitization, scanning, audit)
-│   │   ├── services/            # Reputation, content analysis, quarantine
+│   │   ├── services/            # Reputation, content analysis, quarantine, network detection
+│   │   │   ├── network.js       # Address detection (Tailscale, UPnP, LAN)
+│   │   │   └── ...
 │   │   ├── __tests__/           # 15 test files
 │   │   ├── server.js            # Express API server
 │   │   └── package.json
 │   ├── frontend/
 │   │   ├── pages/               # Dashboard, Explorer, Nodes, Transactions, Security
-│   │   ├── components/          # Shared UI components
+│   │   ├── components/          # Shared UI components (ErrorBoundary, LoadingState)
 │   │   ├── __tests__/           # Frontend tests
 │   │   └── package.json
 │   └── shared/
@@ -409,11 +514,17 @@ localchain/
 ├── docker/
 │   ├── Dockerfile.chain         # Multi-stage Go build for localchaind
 │   ├── docker-compose.yml       # Multi-validator testnet
+│   ├── docker-compose.prod.yml  # Production stack (4 validators + monitoring)
 │   ├── seed-node/               # Seed node Dockerfile + entrypoint
 │   ├── validator/               # Validator Dockerfile + entrypoint
 │   ├── api-gateway/             # Express API Dockerfile
 │   ├── dashboard/               # Next.js frontend Dockerfile
+│   ├── join/                    # Docker image for zero-touch joining
+│   │   ├── Dockerfile
+│   │   └── entrypoint.sh
 │   └── generate-genesis.sh      # Genesis assembly script
+├── scripts/
+│   └── generate-token.sh        # Convenience wrapper for join token generation
 ├── config/
 │   └── config.toml.template     # P2P-ready Tendermint config
 ├── watchdog/
@@ -425,6 +536,7 @@ localchain/
 │   ├── alerts.yml               # Alert rules
 │   └── grafana-dashboard.json   # Pre-built Grafana dashboard
 ├── ecosystem.config.js          # PM2 process definitions
+├── join.sh                      # Zero-touch node join script
 ├── start.sh                     # Mac/Linux launcher
 ├── start.ps1                    # Windows launcher
 ├── Makefile                     # Top-level build + testnet targets
