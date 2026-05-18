@@ -102,18 +102,17 @@ info "Decoding join token..."
 # Base64url decode (replace -_ with +/, add padding)
 decode_base64url() {
   local input="$1"
-  local padded="${input}=="
-  padded="${padded//-/+}"
-  padded="${padded//_//}"
-  # Remove extra padding
-  local len=${#input}
-  local mod=$((len % 4))
+  # Replace URL-safe chars with standard base64
+  input="${input//-/+}"
+  input="${input//_//}"
+  # Add padding
+  local mod=$(( ${#input} % 4 ))
   if [ $mod -eq 2 ]; then
-    padded="${padded}=="
+    input="${input}=="
   elif [ $mod -eq 3 ]; then
-    padded="${padded}="
+    input="${input}="
   fi
-  echo "$padded" | base64 -d 2>/dev/null || echo "$padded" | base64 --decode 2>/dev/null
+  echo "$input" | base64 -d 2>/dev/null || echo "$input" | base64 --decode 2>/dev/null
 }
 
 TOKEN_JSON=$(decode_base64url "$TOKEN")
@@ -213,7 +212,7 @@ if [ "$SKIP_INIT" = false ]; then
   ok "Genesis written"
 else
   if [ -z "$MONIKER" ]; then
-    MONIKER=$(jq -r '.moniker' "$CHAIN_HOME/config/config.toml" 2>/dev/null || echo "node-rejoin")
+    MONIKER=$(grep '^moniker' "$CHAIN_HOME/config/config.toml" | cut -d'"' -f2 || echo "node-rejoin")
   fi
 fi
 
@@ -326,9 +325,9 @@ if [ -z "$LAN_IP" ]; then
 fi
 
 if [ "$HAS_TAILSCALE" = true ]; then
-  PUBLIC_ENDPOINT="${TS_IP}:${P2P_PORT}"
+  PUBLIC_ENDPOINT="$TS_IP"
 else
-  PUBLIC_ENDPOINT="${LAN_IP}:${P2P_PORT}"
+  PUBLIC_ENDPOINT="$LAN_IP"
 fi
 
 curl -sf -X POST "$API_URL/api/nodes/register" \

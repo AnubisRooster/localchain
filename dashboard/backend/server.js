@@ -640,14 +640,14 @@ app.get("/api/bootstrap", validateSharedSecret, async (_req, res) => {
     // Query local node status
     let nodeStatus = null;
     try {
-      const status = await axios.get(`http://localhost:${config.tendermintRpc.split(":").pop()}/status`, { timeout: 5000 });
+      const status = await tendermint.get("/status");
       nodeStatus = status.data.result;
     } catch {}
 
     // Query net_info for peers
     let netInfo = null;
     try {
-      const net = await axios.get(`http://localhost:${config.tendermintRpc.split(":").pop()}/net_info`, { timeout: 5000 });
+      const net = await tendermint.get("/net_info");
       netInfo = net.data.result;
     } catch {}
 

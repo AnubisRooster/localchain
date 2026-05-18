@@ -33,7 +33,7 @@
         deploy validate backup restore logs \
         monitoring-up monitoring-down monitoring-logs \
         genesis chain-build chain-install \
-        join-token join \
+        join-token join-build join \
         test lint clean
 
 COMPOSE = docker compose -f docker/docker-compose.yml
@@ -170,7 +170,10 @@ chain-install:
 join-token:
 	@bash scripts/generate-token.sh
 
-join:
+join-build:
+	docker build -t localchain-join -f docker/join/Dockerfile .
+
+join: join-build
 	@read -p "Paste join token: " TOKEN; \
 	docker run -d --name localchain-node \
 	  -e JOIN_TOKEN="$$TOKEN" \

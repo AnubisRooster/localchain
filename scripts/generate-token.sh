@@ -33,7 +33,7 @@ echo ""
 read -sp "API Key: " API_KEY
 echo ""
 
-RESPONSE=$(curl -sf "$API_URL/api/join-token" \
+RESPONSE=$(curl -sf -X POST "$API_URL/api/join-token" \
   -H "Content-Type: application/json" \
   -H "X-API-Key: $API_KEY")
 
