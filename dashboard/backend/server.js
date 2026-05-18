@@ -25,6 +25,7 @@ const { broadcastRecord: broadcastRecordRest, resetClient: resetBroadcastClient,
 const { createKey, validateKey, revokeKey, listKeys, getKey, getTlsConfig, requireAuth, validateSharedSecret } = require("./services/auth");
 const { initGateway, mapAllPorts, unmapAllPorts, startDiscoveryLoop, stopDiscoveryLoop, getStatus: getUpnpStatus, runDiscovery } = require("./services/upnp");
 const { createTenant, getTenant, listTenants, updateTenant, suspendTenant, getTenantUsage, getGlobalStats, tenantMiddleware } = require("./services/tenant");
+const { detectAddresses, buildEndpoints, buildApiUrls, getLocalIp } = require("./services/network");
 const metrics = require("./services/metrics");
 
 const app = express();
@@ -596,6 +597,142 @@ app.post("/api/upnp/unmap", async (_req, res) => {
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ══════════════════════════════════════════════════════════
+// Bootstrap – zero-touch node joining
+// ══════════════════════════════════════════════════════════
+
+// GET /api/genesis — serves the chain's genesis file (public)
+app.get("/api/genesis", (_req, res) => {
+  const fs = require("fs");
+  const path = require("path");
+  const genesisPath = path.join(config.chainHome, "config", "genesis.json");
+
+  try {
+    if (!fs.existsSync(genesisPath)) {
+      return res.status(500).json({ error: "Genesis not found. Is the chain initialized?" });
+    }
+    const genesis = JSON.parse(fs.readFileSync(genesisPath, "utf-8"));
+    res.json(genesis);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to read genesis file", details: err.message });
+  }
+});
+
+// GET /api/bootstrap — returns everything a new node needs to join (shared secret auth)
+app.get("/api/bootstrap", validateSharedSecret, async (_req, res) => {
+  const fs = require("fs");
+  const path = require("path");
+
+  try {
+    // Read genesis
+    const genesisPath = path.join(config.chainHome, "config", "genesis.json");
+    let genesis = null;
+    if (fs.existsSync(genesisPath)) {
+      genesis = JSON.parse(fs.readFileSync(genesisPath, "utf-8"));
+    }
+
+    // Get chain ID from genesis or config
+    const chainId = genesis?.chain_id || config.chainId || "localchain";
+
+    // Query local node status
+    let nodeStatus = null;
+    try {
+      const status = await axios.get(`http://localhost:${config.tendermintRpc.split(":").pop()}/status`, { timeout: 5000 });
+      nodeStatus = status.data.result;
+    } catch {}
+
+    // Query net_info for peers
+    let netInfo = null;
+    try {
+      const net = await axios.get(`http://localhost:${config.tendermintRpc.split(":").pop()}/net_info`, { timeout: 5000 });
+      netInfo = net.data.result;
+    } catch {}
+
+    // Detect addresses
+    const upnpStatus = await getUpnpStatus();
+    const externalIp = upnpStatus.externalIp || null;
+    const addresses = await detectAddresses(externalIp);
+
+    // Build seed peers from registered nodes + local node
+    const seedPeers = [];
+
+    // Add local node as a seed peer
+    if (nodeStatus) {
+      const localNodeId = nodeStatus.node_info?.id || "";
+      if (localNodeId) {
+        seedPeers.push({
+          node_id: localNodeId,
+          addresses: buildEndpoints(addresses, 26656),
+        });
+      }
+    }
+
+    // Add registered nodes
+    const registeredNodes = getAllNodes();
+    for (const node of registeredNodes) {
+      if (node.status === "online") {
+        seedPeers.push({
+          node_id: node.node_id,
+          addresses: [{ type: "public", address: `${node.public_endpoint}:${node.p2p_port || 26656}` }],
+        });
+      }
+    }
+
+    // Build API endpoints
+    const apiEndpoints = buildApiUrls(addresses, config.apiPort);
+
+    res.json({
+      chain_id: chainId,
+      genesis,
+      seed_peers: seedPeers,
+      api_endpoints: apiEndpoints,
+      network_info: {
+        block_height: nodeStatus ? parseInt(nodeStatus.sync_info?.latest_block_height || "0", 10) : 0,
+        peers: netInfo ? parseInt(netInfo.n_peers || "0", 10) : 0,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to build bootstrap bundle", details: err.message });
+  }
+});
+
+// POST /api/join-token — generates a join token for new nodes
+// NOTE: The token contains the shared secret in base64 (not encrypted).
+// This is intentional — the token is meant to be shared deliberately with
+// trusted devices, similar to Tailscale pre-auth keys.
+app.post("/api/join-token", requireAuth, async (_req, res) => {
+  try {
+    const sharedSecret = process.env.VALIDATOR_SHARED_SECRET || "";
+    const chainId = config.chainId || "localchain";
+
+    // Detect addresses
+    const upnpStatus = await getUpnpStatus();
+    const externalIp = upnpStatus.externalIp || null;
+    const addresses = await detectAddresses(externalIp);
+    const apiUrls = buildApiUrls(addresses, config.apiPort);
+
+    // Build token payload
+    const payload = {
+      v: 1,
+      api: apiUrls.map((a) => a.url),
+      secret: sharedSecret,
+      chain_id: chainId,
+      created_at: new Date().toISOString(),
+    };
+
+    // Base64url encode
+    const token = Buffer.from(JSON.stringify(payload)).toString("base64url");
+
+    res.json({
+      token,
+      expires_at: null,
+      api_urls: apiUrls.map((a) => a.url),
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to generate join token", details: err.message });
   }
 });
 

@@ -13,6 +13,8 @@ const PORT_MAP_TTL = parseInt(process.env.UPNP_PORT_MAP_TTL, 10) || 86400;
 const P2P_PORT = parseInt(process.env.P2P_PORT, 10) || 26656;
 const RPC_PORT = parseInt(process.env.RPC_PORT, 10) || 26657;
 const REST_PORT = parseInt(process.env.REST_PORT, 10) || 1317;
+const API_PORT = parseInt(process.env.API_PORT, 10) || 4000;
+const DASHBOARD_PORT = parseInt(process.env.FRONTEND_PORT, 10) || 3000;
 
 let natClient = null;
 let discoveryInterval = null;
@@ -98,6 +100,12 @@ async function mapAllPorts() {
   results.p2pUdp = await mapPort(P2P_PORT, "udp", "localchain-p2p-udp");
   results.rpc = await mapPort(RPC_PORT, "tcp", "localchain-rpc");
   results.rest = await mapPort(REST_PORT, "tcp", "localchain-rest");
+  results.api = await mapPort(API_PORT, "tcp", "localchain-api");
+
+  if (process.env.UPNP_MAP_DASHBOARD === "1") {
+    results.dashboard = await mapPort(DASHBOARD_PORT, "tcp", "localchain-dashboard");
+  }
+
   return results;
 }
 

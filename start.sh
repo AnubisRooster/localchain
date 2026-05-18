@@ -50,6 +50,18 @@ if command -v tailscale >/dev/null 2>&1; then
   TS_IP=$(tailscale ip -4 2>/dev/null || echo "")
 fi
 
+# Configure CometBFT external address with Tailscale IP
+if [ -n "$TS_IP" ]; then
+  CONFIG="$HOME/.localchaind/config/config.toml"
+  if [ -f "$CONFIG" ]; then
+    CURRENT_EXT=$(grep '^external_address' "$CONFIG" | cut -d'"' -f2)
+    if [ -z "$CURRENT_EXT" ]; then
+      sed -i "s|^external_address = .*|external_address = \"${TS_IP}:26656\"|" "$CONFIG"
+      echo "  Tailscale  : external_address set to ${TS_IP}:26656"
+    fi
+  fi
+fi
+
 echo ""
 echo "═══════════════════════════════════════════════════"
 echo "  ⛓  LocalChain Stack Running"

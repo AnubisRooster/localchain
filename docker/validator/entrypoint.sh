@@ -51,6 +51,16 @@ if [ -n "${EXTERNAL_ADDRESS:-}" ]; then
   sed -i "s|^external_address = .*|external_address = \"$EXTERNAL_ADDRESS\"|" "$CONFIG"
 fi
 
+# Auto-detect Tailscale if no external address was explicitly set
+if [ -z "${EXTERNAL_ADDRESS:-}" ] && command -v tailscale >/dev/null 2>&1; then
+  TS_IP=$(tailscale ip -4 2>/dev/null || echo "")
+  if [ -n "$TS_IP" ]; then
+    EXTERNAL_ADDRESS="${TS_IP}:26656"
+    echo "[$MONIKER] Tailscale detected: external_address=$EXTERNAL_ADDRESS"
+    sed -i "s|^external_address = .*|external_address = \"$EXTERNAL_ADDRESS\"|" "$CONFIG"
+  fi
+fi
+
 # Set seeds if provided
 if [ -n "${SEEDS:-}" ]; then
   sed -i "s|^seeds = .*|seeds = \"$SEEDS\"|" "$CONFIG"

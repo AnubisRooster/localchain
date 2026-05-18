@@ -177,6 +177,7 @@ function getTlsConfig() {
 function requireAuth(req, res, next) {
   const skipPaths = [
     "/health",
+    "/api/genesis",
     "/api/broadcast/status",
     "/api/nodes/select",
     "/api/nodes/pool/stats",
