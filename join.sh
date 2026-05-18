@@ -84,10 +84,11 @@ if [ ${#MISSING_DEPS[@]} -gt 0 ]; then
 fi
 
 # Check localchaind
-LOCALCHAIND_BIN=""
-if command -v localchaind >/dev/null 2>&1; then
+LOCALCHAIND_BIN="${CHAIN_BINARY:-}"
+if [ -z "$LOCALCHAIND_BIN" ] && command -v localchaind >/dev/null 2>&1; then
   LOCALCHAIND_BIN="localchaind"
-elif [ -f "${HOME}/go/bin/localchaind" ]; then
+fi
+if [ -z "$LOCALCHAIND_BIN" ] && [ -f "${HOME}/go/bin/localchaind" ]; then
   LOCALCHAIND_BIN="${HOME}/go/bin/localchaind"
 fi
 

@@ -214,7 +214,7 @@ function requireAuth(req, res, next) {
 }
 
 function validateSharedSecret(req, res, next) {
-  const secret = req.headers["x-validator-secret"];
+  const secret = req.headers["x-shared-secret"];
   const expected = process.env.VALIDATOR_SHARED_SECRET;
 
   if (!expected) return next();
