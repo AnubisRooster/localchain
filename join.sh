@@ -47,6 +47,13 @@ ok()    { echo "✔ $*"; }
 warn()  { echo "⚠ $*"; }
 err()   { echo "✖ $*" >&2; }
 
+# Cross-platform sed -i wrapper (macOS BSD vs GNU)
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  sedi() { sed -i '' "$@"; }
+else
+  sedi() { sed -i "$@"; }
+fi
+
 # ── Step 0: Check prerequisites ─────────────────────────────
 echo ""
 echo "⛓  LocalChain Node Join"
@@ -204,7 +211,7 @@ if [ "$SKIP_INIT" = false ]; then
   fi
 
   info "Initializing chain: $MONIKER"
-  $LOCALCHAIND init "$MONIKER" --chain-id "$CHAIN_ID" --home "$CHAIN_HOME"
+  $LOCALCHAIND_BIN init "$MONIKER" --chain-id "$CHAIN_ID" --home "$CHAIN_HOME"
 
   # Write genesis
   info "Writing genesis..."
@@ -221,10 +228,15 @@ CONFIG="$CHAIN_HOME/config/config.toml"
 
 info "Configuring CometBFT..."
 
-# Bind to all interfaces
-sed -i 's|^laddr = "tcp://127.0.0.1:26657"|laddr = "tcp://0.0.0.0:26657"|' "$CONFIG"
-sed -i 's|^pex = .*|pex = true|' "$CONFIG"
-sed -i 's|^addr_book_strict = .*|addr_book_strict = false|' "$CONFIG"
+# Bind RPC to all interfaces with configured port
+sedi "s|^laddr = \"tcp://127.0.0.1:26657\"|laddr = \"tcp://0.0.0.0:${RPC_PORT}\"|" "$CONFIG"
+sedi 's|^pex = .*|pex = true|' "$CONFIG"
+sedi 's|^addr_book_strict = .*|addr_book_strict = false|' "$CONFIG"
+
+# Update P2P laddr if non-default port
+if [ "$P2P_PORT" != "26656" ]; then
+  sedi "s|laddr = \"tcp://0.0.0.0:26656\"|laddr = \"tcp://0.0.0.0:${P2P_PORT}\"|" "$CONFIG"
+fi
 
 # Build persistent_peers string
 PEERS=""
@@ -263,7 +275,7 @@ for ((i=0; i<PEER_COUNT; i++)); do
   fi
 done
 
-sed -i "s|^persistent_peers = .*|persistent_peers = \"$PEERS\"|" "$CONFIG"
+sedi "s|^persistent_peers = .*|persistent_peers = \"$PEERS\"|" "$CONFIG"
 
 # Set external_address
 EXTERNAL_ADDR=""
@@ -272,7 +284,7 @@ if [ "$HAS_TAILSCALE" = true ]; then
   info "External address (Tailscale): $EXTERNAL_ADDR"
 fi
 
-sed -i "s|^external_address = .*|external_address = \"$EXTERNAL_ADDR\"|" "$CONFIG"
+sedi "s|^external_address = .*|external_address = \"$EXTERNAL_ADDR\"|" "$CONFIG"
 
 ok "CometBFT configured"
 
@@ -281,10 +293,11 @@ if [ "$NO_START" = false ]; then
   info "Starting node..."
 
   if command -v pm2 >/dev/null 2>&1; then
-    pm2 start "$LOCALCHAIND" --name localchaind -- start --home "$CHAIN_HOME" --minimum-gas-prices 0stake
-    ok "Started via PM2"
+    PM2_NAME="localchaind-${MONIKER}"
+    pm2 start "$LOCALCHAIND_BIN" --name "$PM2_NAME" -- start --home "$CHAIN_HOME" --minimum-gas-prices 0stake
+    ok "Started via PM2 as '$PM2_NAME'"
   else
-    nohup "$LOCALCHAIND" start --home "$CHAIN_HOME" --minimum-gas-prices 0stake > "$CHAIN_HOME/node.log" 2>&1 &
+    nohup "$LOCALCHAIND_BIN" start --home "$CHAIN_HOME" --minimum-gas-prices 0stake > "$CHAIN_HOME/node.log" 2>&1 &
     ok "Started in background (log: $CHAIN_HOME/node.log)"
   fi
 
@@ -343,7 +356,9 @@ curl -sf -X POST "$API_URL/api/nodes/register" \
   }" 2>/dev/null || warn "Failed to register with origin (node will still sync)"
 
 # ── Step 9: Print summary ───────────────────────────────────
-DASHBOARD_URL=$(echo "$API_URL" | sed 's|:4000|:3000|')
+DASHBOARD_PORT="${DASHBOARD_PORT:-3000}"
+DASHBOARD_URL=$(echo "$API_URL" | sed "s|:[0-9]*$|:${DASHBOARD_PORT}|")
+PM2_NAME="localchaind-${MONIKER}"
 
 echo ""
 echo "═══════════════════════════════════════════════════"
@@ -359,7 +374,7 @@ echo "  Dashboard   : $DASHBOARD_URL"
 echo ""
 echo "  To check status:  $LOCALCHAIND_BIN status --home $CHAIN_HOME"
 if command -v pm2 >/dev/null 2>&1; then
-  echo "  To view logs:     pm2 logs localchaind"
+  echo "  To view logs:     pm2 logs $PM2_NAME"
 else
   echo "  To view logs:     tail -f $CHAIN_HOME/node.log"
 fi

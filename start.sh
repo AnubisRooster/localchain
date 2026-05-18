@@ -56,7 +56,12 @@ if [ -n "$TS_IP" ]; then
   if [ -f "$CONFIG" ]; then
     CURRENT_EXT=$(grep '^external_address' "$CONFIG" | cut -d'"' -f2)
     if [ -z "$CURRENT_EXT" ]; then
-      sed -i "s|^external_address = .*|external_address = \"${TS_IP}:26656\"|" "$CONFIG"
+      # Cross-platform sed -i wrapper
+      if [[ "$OSTYPE" == "darwin"* ]]; then
+        sed -i '' "s|^external_address = .*|external_address = \"${TS_IP}:26656\"|" "$CONFIG"
+      else
+        sed -i "s|^external_address = .*|external_address = \"${TS_IP}:26656\"|" "$CONFIG"
+      fi
       echo "  Tailscale  : external_address set to ${TS_IP}:26656"
     fi
   fi

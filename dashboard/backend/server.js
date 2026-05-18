@@ -681,13 +681,21 @@ app.get("/api/bootstrap", validateSharedSecret, async (_req, res) => {
       }
     }
 
+    // Deduplicate seed peers by node_id (local node may also be in registry)
+    const seen = new Set();
+    const dedupedPeers = seedPeers.filter((p) => {
+      if (seen.has(p.node_id)) return false;
+      seen.add(p.node_id);
+      return true;
+    });
+
     // Build API endpoints
     const apiEndpoints = buildApiUrls(addresses, config.apiPort);
 
     res.json({
       chain_id: chainId,
       genesis,
-      seed_peers: seedPeers,
+      seed_peers: dedupedPeers,
       api_endpoints: apiEndpoints,
       network_info: {
         block_height: nodeStatus ? parseInt(nodeStatus.sync_info?.latest_block_height || "0", 10) : 0,
