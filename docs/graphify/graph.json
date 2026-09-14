@@ -3747,6 +3747,18 @@
       "weight": 1.0
     },
     {
+      "source": "dashboard_backend_middleware_sanitization_sanitizeobject",
+      "target": "dashboard_backend_middleware_sanitization_sanitizeobject",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "dashboard/backend/middleware/sanitization.js",
+      "source_location": "L45",
+      "weight": 1.0
+    },
+    {
       "source": "dashboard_backend_middleware_sanitization_sanitizequery",
       "target": "dashboard_backend_middleware_sanitization_sanitizestring",
       "relation": "calls",
@@ -4200,6 +4212,18 @@
       "context": "call",
       "source_file": "watchdog/watchdog.js",
       "source_location": "L64",
+      "weight": 1.0
+    },
+    {
+      "source": "watchdog_watchdog_log",
+      "target": "watchdog_watchdog_log",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "watchdog/watchdog.js",
+      "source_location": "L32",
       "weight": 1.0
     },
     {
@@ -8610,5 +8634,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "2798af1935d7e99f6755988c794ae3f1734c97c1"
+  "built_at_commit": "b01d61127a64d6df9227424a63ef1b9e61369749"
 }

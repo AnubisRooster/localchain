@@ -1,11 +1,12 @@
-# Graph Report - localchain  (2026-09-07)
+# Graph Report - localchain  (2026-09-14)
 
 ## Corpus Check
-- 56 files · ~62,325 words
+- 56 files · ~62,324 words
 - Verdict: corpus is large enough that graph structure adds value.
+- Unclassified: 3 file(s) not represented in the graph (top: (none) 1, .css 1, .jsonl 1)
 
 ## Summary
-- 315 nodes · 436 edges · 25 communities (15 shown, 6 thin omitted)
+- 315 nodes · 438 edges · 25 communities (15 shown, 6 thin omitted)
 - Extraction: 86% EXTRACTED · 14% INFERRED · 0% AMBIGUOUS · INFERRED: 60 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
@@ -42,7 +43,7 @@
 7. `getDb()` - 7 edges
 8. `getReputation()` - 7 edges
 9. `getDb()` - 6 edges
-10. `analyzeContent()` - 5 edges
+10. `sanitizeObject()` - 6 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `Dashboard()` --calls--> `useApi()`  [EXTRACTED]
@@ -104,7 +105,7 @@ Cohesion: 0.42
 Nodes (9): calculateRiskScore(), getHighestSeverity(), INJECTION_PATTERNS, POISONING_INDICATORS, scanContent(), scanForInjections(), scanForPoisoning(), scanRecord() (+1 more)
 
 ### Community 11 - "sanitization.js"
-Cohesion: 0.44
+Cohesion: 0.45
 Nodes (9): normalizeWhitespace(), sanitizeObject(), sanitizeQuery(), sanitizeRecord(), sanitizeString(), stripBidiOverrides(), stripControlChars(), stripZeroWidth() (+1 more)
 
 ### Community 12 - "watchdog/package.json"
