@@ -1,47 +1,47 @@
-# Graph Report - localchain  (2026-09-14)
+# Graph Report - localchain  (2026-09-21)
 
 ## Corpus Check
-- 56 files · ~62,324 words
+- 56 files · ~62,420 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 3 file(s) not represented in the graph (top: (none) 1, .css 1, .jsonl 1)
 
 ## Summary
-- 315 nodes · 438 edges · 25 communities (15 shown, 6 thin omitted)
-- Extraction: 86% EXTRACTED · 14% INFERRED · 0% AMBIGUOUS · INFERRED: 60 edges (avg confidence: 0.85)
+- 340 nodes · 521 edges · 25 communities (18 shown, 7 thin omitted)
+- Extraction: 88% EXTRACTED · 12% INFERRED · 0% AMBIGUOUS · INFERRED: 60 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Community Hubs (Navigation)
-- server.js
 - frontend/package.json
-- useApi()
-- backend/package.json
-- reputation.js
-- supertest
-- watchdog.js
-- audit-logger.js
 - quarantine.js
+- backend/package.json
+- watchdog.js
+- server.js
+- reputation.js
+- audit-logger.js
 - content-analyzer.js
+- rate-limiter.js
+- supertest
+- graphify_pipeline.py
+- validation.js
+- jest.config.js
 - injection-scanner.js
 - sanitization.js
 - watchdog/package.json
+- devDependencies
 - security.jsx
-- Layout.jsx
-- jest.config.js
-- config.js
-- watchdog.test.js
+- dependencies
 - next.config.js
-- graphify_pipeline.py
 - start.sh script
 
 ## God Nodes (most connected - your core abstractions)
 1. `useApi()` - 10 edges
 2. `sanitizeString()` - 9 edges
 3. `getDb()` - 8 edges
-4. `react` - 8 edges
-5. `scanContent()` - 7 edges
-6. `supertest` - 7 edges
-7. `getDb()` - 7 edges
-8. `getReputation()` - 7 edges
+4. `getDb()` - 8 edges
+5. `getReputation()` - 8 edges
+6. `react` - 8 edges
+7. `scanContent()` - 7 edges
+8. `supertest` - 7 edges
 9. `getDb()` - 6 edges
 10. `sanitizeObject()` - 6 edges
 
@@ -58,87 +58,99 @@
 ## Import Cycles
 - None detected.
 
-## Communities (25 total, 6 thin omitted)
+## Communities (25 total, 7 thin omitted)
 
-### Community 0 - "server.js"
-Cohesion: 0.05
-Nodes (39): apiRequestLimiter, createAddressBasedLimiter(), createRateLimiter(), getRateLimitStatus(), rateLimit, recordSubmissionLimiter, txQueryLimiter, ALLOWED_CONTENT_TYPES (+31 more)
+### Community 0 - "frontend/package.json"
+Cohesion: 0.07
+Nodes (29): StatCard(), api, useApi(), axios, jest, name, private, scripts (+21 more)
 
-### Community 1 - "frontend/package.json"
-Cohesion: 0.06
-Nodes (31): dependencies, axios, next, react, react-dom, recharts, devDependencies, autoprefixer (+23 more)
+### Community 1 - "quarantine.js"
+Cohesion: 0.11
+Nodes (24): closeDb(), Database, deleteEntry(), fs, getDb(), getQuarantineCount(), getQuarantineStats(), path (+16 more)
 
-### Community 2 - "useApi()"
-Cohesion: 0.15
-Nodes (12): StatCard(), api, useApi(), Explorer(), Dashboard(), Nodes(), ExpandedContent(), Transactions() (+4 more)
+### Community 2 - "backend/package.json"
+Cohesion: 0.07
+Nodes (26): dependencies, axios, better-sqlite3, cors, express, express-rate-limit, helmet, zod (+18 more)
 
-### Community 3 - "backend/package.json"
-Cohesion: 0.08
-Nodes (24): dependencies, axios, better-sqlite3, cors, express, express-rate-limit, helmet, zod (+16 more)
-
-### Community 4 - "reputation.js"
-Cohesion: 0.16
-Nodes (17): addFlag(), Database, fs, getDb(), getFlaggedAddresses(), getLevel(), getReputation(), getTopAddresses() (+9 more)
-
-### Community 5 - "supertest"
+### Community 3 - "watchdog.js"
 Cohesion: 0.10
-Nodes (14): request, axios, request, axios, request, SAMPLE_RECORDS, axios, fs (+6 more)
+Nodes (22): ref_child_process, ref_http, ref_os, { execSync }, http, os, canRestart(), CHECK_MAP (+14 more)
 
-### Community 6 - "watchdog.js"
-Cohesion: 0.14
-Nodes (16): canRestart(), CHECK_MAP, checkRpcHealth(), checkStaleBlocks(), { exec, execSync }, fs, http, httpGet() (+8 more)
+### Community 4 - "server.js"
+Cohesion: 0.09
+Nodes (20): addressLimiter, app, { auditMiddleware, queryAuditLog, getAuditStats }, axios, config, { contentAnalysisMiddleware }, cors, cosmos (+12 more)
 
-### Community 7 - "audit-logger.js"
-Cohesion: 0.15
-Nodes (16): auditMiddleware(), crypto, Database, fs, getAuditStats(), getDb(), hashContent(), logSecurityEvent() (+8 more)
+### Community 5 - "reputation.js"
+Cohesion: 0.21
+Nodes (18): addFlag(), closeDb(), Database, fs, getDb(), getFlaggedAddresses(), getLevel(), getReputation() (+10 more)
 
-### Community 8 - "quarantine.js"
+### Community 6 - "audit-logger.js"
+Cohesion: 0.20
+Nodes (16): auditMiddleware(), closeDb(), crypto, Database, fs, getAuditStats(), getDb(), hashContent() (+8 more)
+
+### Community 7 - "content-analyzer.js"
 Cohesion: 0.16
-Nodes (15): Database, deleteEntry(), fs, getDb(), getQuarantineCount(), getQuarantineStats(), path, quarantineEntry() (+7 more)
+Nodes (16): analyzeContent(), calculateEntropy(), CODE_PATTERNS, CONFIG_PATTERNS, CONTENT_CATEGORIES, contentAnalysisMiddleware(), crypto, DATA_PATTERNS (+8 more)
 
-### Community 9 - "content-analyzer.js"
-Cohesion: 0.19
-Nodes (14): analyzeContent(), calculateEntropy(), CODE_PATTERNS, CONFIG_PATTERNS, CONTENT_CATEGORIES, contentAnalysisMiddleware(), crypto, DATA_PATTERNS (+6 more)
+### Community 8 - "rate-limiter.js"
+Cohesion: 0.17
+Nodes (12): apiRequestLimiter, createAddressBasedLimiter(), createRateLimiter(), dashboard_backend_middleware_rate_limiter_default_max_api_requests, dashboard_backend_middleware_rate_limiter_default_max_record_submissions, dashboard_backend_middleware_rate_limiter_default_max_tx_queries, dashboard_backend_middleware_rate_limiter_default_window_ms, getRateLimitStatus() (+4 more)
 
-### Community 10 - "injection-scanner.js"
+### Community 9 - "supertest"
+Cohesion: 0.13
+Nodes (10): request, axios, request, axios, request, SAMPLE_RECORDS, axios, request (+2 more)
+
+### Community 10 - "graphify_pipeline.py"
+Cohesion: 0.13
+Nodes (13): graphify_analyze, graphify_build, graphify_cluster, graphify_detect, graphify_export, graphify_extract, graphify_llm, graphify_report (+5 more)
+
+### Community 11 - "validation.js"
+Cohesion: 0.17
+Nodes (10): ALLOWED_CONTENT_TYPES, blockQuerySchema, recordSchema, recordsQuerySchema, txQuerySchema, validateRecord(), validateRecordsQuery(), validateTxQuery() (+2 more)
+
+### Community 12 - "jest.config.js"
+Cohesion: 0.18
+Nodes (7): Layout(), NAV_ITEMS, createJestConfig, customConfig, nextJest, dashboard_frontend_styles_globals, next
+
+### Community 13 - "injection-scanner.js"
 Cohesion: 0.42
 Nodes (9): calculateRiskScore(), getHighestSeverity(), INJECTION_PATTERNS, POISONING_INDICATORS, scanContent(), scanForInjections(), scanForPoisoning(), scanRecord() (+1 more)
 
-### Community 11 - "sanitization.js"
-Cohesion: 0.45
+### Community 14 - "sanitization.js"
+Cohesion: 0.44
 Nodes (9): normalizeWhitespace(), sanitizeObject(), sanitizeQuery(), sanitizeRecord(), sanitizeString(), stripBidiOverrides(), stripControlChars(), stripZeroWidth() (+1 more)
 
-### Community 12 - "watchdog/package.json"
+### Community 15 - "watchdog/package.json"
 Cohesion: 0.18
 Nodes (10): description, devDependencies, jest, jest, main, name, scripts, start (+2 more)
 
-### Community 15 - "jest.config.js"
-Cohesion: 0.40
-Nodes (3): createJestConfig, customConfig, nextJest
+### Community 16 - "devDependencies"
+Cohesion: 0.25
+Nodes (8): devDependencies, autoprefixer, jest, jest-environment-jsdom, postcss, tailwindcss, @testing-library/jest-dom, @testing-library/react
 
-### Community 17 - "watchdog.test.js"
-Cohesion: 0.50
-Nodes (3): { execSync }, http, os
+### Community 18 - "dependencies"
+Cohesion: 0.33
+Nodes (6): dependencies, axios, next, react, react-dom, recharts
 
 ## Knowledge Gaps
-- **145 isolated node(s):** `fs`, `path`, `os`, `TEST_DB`, `request` (+140 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 178 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **6 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **144 isolated node(s):** `fs`, `path`, `os`, `TEST_DB`, `request` (+139 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 192 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **7 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `better-sqlite3` connect `audit-logger.js` to `quarantine.js`, `backend/package.json`, `reputation.js`?**
-  _High betweenness centrality (0.028) - this node is a cross-community bridge._
-- **Why does `react` connect `useApi()` to `frontend/package.json`, `security.jsx`?**
-  _High betweenness centrality (0.022) - this node is a cross-community bridge._
+- **Why does `react` connect `frontend/package.json` to `security.jsx`?**
+  _High betweenness centrality (0.172) - this node is a cross-community bridge._
+- **Why does `next` connect `jest.config.js` to `frontend/package.json`?**
+  _High betweenness centrality (0.057) - this node is a cross-community bridge._
 - **What connects `fs`, `path`, `os` to the rest of the system?**
-  _145 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Should `server.js` be split into smaller, more focused modules?**
-  _Cohesion score 0.05272895467160037 - nodes in this community are weakly interconnected._
+  _144 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `frontend/package.json` be split into smaller, more focused modules?**
-  _Cohesion score 0.0625 - nodes in this community are weakly interconnected._
-- **Should `useApi()` be split into smaller, more focused modules?**
-  _Cohesion score 0.1476923076923077 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.07399577167019028 - nodes in this community are weakly interconnected._
+- **Should `quarantine.js` be split into smaller, more focused modules?**
+  _Cohesion score 0.11330049261083744 - nodes in this community are weakly interconnected._
 - **Should `backend/package.json` be split into smaller, more focused modules?**
-  _Cohesion score 0.08 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.07407407407407407 - nodes in this community are weakly interconnected._
+- **Should `watchdog.js` be split into smaller, more focused modules?**
+  _Cohesion score 0.09971509971509972 - nodes in this community are weakly interconnected._
