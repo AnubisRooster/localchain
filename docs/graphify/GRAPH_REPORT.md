@@ -1,13 +1,13 @@
-# Graph Report - localchain  (2026-09-21)
+# Graph Report - localchain  (2026-09-28)
 
 ## Corpus Check
-- 56 files · ~62,420 words
+- 56 files · ~67,205 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 3 file(s) not represented in the graph (top: (none) 1, .css 1, .jsonl 1)
 
 ## Summary
-- 340 nodes · 521 edges · 25 communities (18 shown, 7 thin omitted)
-- Extraction: 88% EXTRACTED · 12% INFERRED · 0% AMBIGUOUS · INFERRED: 60 edges (avg confidence: 0.85)
+- 340 nodes · 536 edges · 25 communities (19 shown, 6 thin omitted)
+- Extraction: 89% EXTRACTED · 11% INFERRED · 0% AMBIGUOUS · INFERRED: 60 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Community Hubs (Navigation)
@@ -46,23 +46,25 @@
 10. `sanitizeObject()` - 6 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `Dashboard()` --calls--> `useApi()`  [EXTRACTED]
-  dashboard/frontend/pages/index.jsx → dashboard/frontend/components/useApi.js
-- `Nodes()` --calls--> `useApi()`  [EXTRACTED]
-  dashboard/frontend/pages/nodes.jsx → dashboard/frontend/components/useApi.js
+- `App()` --calls--> `Layout()`  [EXTRACTED]
+  dashboard/frontend/pages/_app.jsx → dashboard/frontend/components/Layout.jsx
+- `Dashboard()` --calls--> `StatCard()`  [EXTRACTED]
+  dashboard/frontend/pages/index.jsx → dashboard/frontend/components/StatCard.jsx
+- `Nodes()` --calls--> `StatCard()`  [EXTRACTED]
+  dashboard/frontend/pages/nodes.jsx → dashboard/frontend/components/StatCard.jsx
 - `Explorer()` --calls--> `useApi()`  [EXTRACTED]
   dashboard/frontend/pages/explorer.jsx → dashboard/frontend/components/useApi.js
-- `Transactions()` --calls--> `useApi()`  [EXTRACTED]
-  dashboard/frontend/pages/transactions.jsx → dashboard/frontend/components/useApi.js
+- `Dashboard()` --calls--> `useApi()`  [EXTRACTED]
+  dashboard/frontend/pages/index.jsx → dashboard/frontend/components/useApi.js
 
 ## Import Cycles
 - None detected.
 
-## Communities (25 total, 7 thin omitted)
+## Communities (25 total, 6 thin omitted)
 
 ### Community 0 - "frontend/package.json"
-Cohesion: 0.07
-Nodes (29): StatCard(), api, useApi(), axios, jest, name, private, scripts (+21 more)
+Cohesion: 0.08
+Nodes (34): StatCard(), api, useApi(), axios, jest, name, private, scripts (+26 more)
 
 ### Community 1 - "quarantine.js"
 Cohesion: 0.11
@@ -109,8 +111,8 @@ Cohesion: 0.17
 Nodes (10): ALLOWED_CONTENT_TYPES, blockQuerySchema, recordSchema, recordsQuerySchema, txQuerySchema, validateRecord(), validateRecordsQuery(), validateTxQuery() (+2 more)
 
 ### Community 12 - "jest.config.js"
-Cohesion: 0.18
-Nodes (7): Layout(), NAV_ITEMS, createJestConfig, customConfig, nextJest, dashboard_frontend_styles_globals, next
+Cohesion: 0.20
+Nodes (8): Layout(), NAV_ITEMS, createJestConfig, customConfig, nextJest, App(), dashboard_frontend_styles_globals, next
 
 ### Community 13 - "injection-scanner.js"
 Cohesion: 0.42
@@ -128,14 +130,18 @@ Nodes (10): description, devDependencies, jest, jest, main, name, scripts, start
 Cohesion: 0.25
 Nodes (8): devDependencies, autoprefixer, jest, jest-environment-jsdom, postcss, tailwindcss, @testing-library/jest-dom, @testing-library/react
 
+### Community 17 - "security.jsx"
+Cohesion: 0.46
+Nodes (7): EntryDetail(), Security(), StatCard(), STATUS_COLORS, StatusBadge(), THREAT_COLORS, ThreatBadge()
+
 ### Community 18 - "dependencies"
 Cohesion: 0.33
 Nodes (6): dependencies, axios, next, react, react-dom, recharts
 
 ## Knowledge Gaps
 - **144 isolated node(s):** `fs`, `path`, `os`, `TEST_DB`, `request` (+139 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 192 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **7 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+  These have ≤1 connection - possible missing edges. (Counts symbols only; 181 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **6 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
@@ -147,7 +153,7 @@ _Questions this graph is uniquely positioned to answer:_
 - **What connects `fs`, `path`, `os` to the rest of the system?**
   _144 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `frontend/package.json` be split into smaller, more focused modules?**
-  _Cohesion score 0.07399577167019028 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.0824524312896406 - nodes in this community are weakly interconnected._
 - **Should `quarantine.js` be split into smaller, more focused modules?**
   _Cohesion score 0.11330049261083744 - nodes in this community are weakly interconnected._
 - **Should `backend/package.json` be split into smaller, more focused modules?**

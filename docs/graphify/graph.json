@@ -4646,6 +4646,18 @@
       "weight": 1.0
     },
     {
+      "source": "dashboard_frontend_pages_app_app",
+      "target": "dashboard_frontend_components_layout_layout",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "dashboard/frontend/pages/_app.jsx",
+      "source_location": "L6",
+      "weight": 1.0
+    },
+    {
       "source": "dashboard_frontend_pages_explorer_explorer",
       "target": "dashboard_frontend_components_useapi_useapi",
       "relation": "calls",
@@ -4655,6 +4667,18 @@
       "context": "call",
       "source_file": "dashboard/frontend/pages/explorer.jsx",
       "source_location": "L5",
+      "weight": 1.0
+    },
+    {
+      "source": "dashboard_frontend_pages_explorer_explorer",
+      "target": "dashboard_frontend_pages_explorer_detailrow",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "dashboard/frontend/pages/explorer.jsx",
+      "source_location": "L73",
       "weight": 1.0
     },
     {
@@ -4670,6 +4694,30 @@
       "weight": 1.0
     },
     {
+      "source": "dashboard_frontend_pages_index_dashboard",
+      "target": "dashboard_frontend_components_statcard_statcard",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "dashboard/frontend/pages/index.jsx",
+      "source_location": "L55",
+      "weight": 1.0
+    },
+    {
+      "source": "dashboard_frontend_pages_nodes_nodes",
+      "target": "dashboard_frontend_components_statcard_statcard",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "dashboard/frontend/pages/nodes.jsx",
+      "source_location": "L24",
+      "weight": 1.0
+    },
+    {
       "source": "dashboard_frontend_pages_nodes_nodes",
       "target": "dashboard_frontend_components_useapi_useapi",
       "relation": "calls",
@@ -4679,6 +4727,114 @@
       "context": "call",
       "source_file": "dashboard/frontend/pages/nodes.jsx",
       "source_location": "L5",
+      "weight": 1.0
+    },
+    {
+      "source": "dashboard_frontend_pages_nodes_nodes",
+      "target": "dashboard_frontend_pages_nodes_row",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "dashboard/frontend/pages/nodes.jsx",
+      "source_location": "L83",
+      "weight": 1.0
+    },
+    {
+      "source": "dashboard_frontend_pages_security_entrydetail",
+      "target": "dashboard_frontend_pages_security_threatbadge",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "dashboard/frontend/pages/security.jsx",
+      "source_location": "L62",
+      "weight": 1.0
+    },
+    {
+      "source": "dashboard_frontend_pages_security_entrydetail",
+      "target": "dashboard_frontend_pages_security_statusbadge",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "dashboard/frontend/pages/security.jsx",
+      "source_location": "L63",
+      "weight": 1.0
+    },
+    {
+      "source": "dashboard_frontend_pages_security_security",
+      "target": "dashboard_frontend_pages_security_statcard",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "dashboard/frontend/pages/security.jsx",
+      "source_location": "L249",
+      "weight": 1.0
+    },
+    {
+      "source": "dashboard_frontend_pages_security_security",
+      "target": "dashboard_frontend_pages_security_threatbadge",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "dashboard/frontend/pages/security.jsx",
+      "source_location": "L368",
+      "weight": 1.0
+    },
+    {
+      "source": "dashboard_frontend_pages_security_security",
+      "target": "dashboard_frontend_pages_security_statusbadge",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "dashboard/frontend/pages/security.jsx",
+      "source_location": "L382",
+      "weight": 1.0
+    },
+    {
+      "source": "dashboard_frontend_pages_security_security",
+      "target": "dashboard_frontend_pages_security_entrydetail",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "dashboard/frontend/pages/security.jsx",
+      "source_location": "L408",
+      "weight": 1.0
+    },
+    {
+      "source": "dashboard_frontend_pages_transactions_createform",
+      "target": "dashboard_frontend_pages_transactions_taginput",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "dashboard/frontend/pages/transactions.jsx",
+      "source_location": "L228",
+      "weight": 1.0
+    },
+    {
+      "source": "dashboard_frontend_pages_transactions_createform",
+      "target": "dashboard_frontend_pages_transactions_labelinput",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "dashboard/frontend/pages/transactions.jsx",
+      "source_location": "L235",
       "weight": 1.0
     },
     {
@@ -4707,6 +4863,18 @@
     },
     {
       "source": "dashboard_frontend_pages_transactions_transactions",
+      "target": "dashboard_frontend_pages_transactions_createform",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "dashboard/frontend/pages/transactions.jsx",
+      "source_location": "L481",
+      "weight": 1.0
+    },
+    {
+      "source": "dashboard_frontend_pages_transactions_transactions",
       "target": "dashboard_frontend_pages_transactions_truncate",
       "relation": "calls",
       "_origin": "ast",
@@ -4715,6 +4883,18 @@
       "context": "call",
       "source_file": "dashboard/frontend/pages/transactions.jsx",
       "source_location": "L695",
+      "weight": 1.0
+    },
+    {
+      "source": "dashboard_frontend_pages_transactions_transactions",
+      "target": "dashboard_frontend_pages_transactions_expandedcontent",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "dashboard/frontend/pages/transactions.jsx",
+      "source_location": "L812",
       "weight": 1.0
     },
     {
@@ -9913,5 +10093,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "5a1c9c1801e47d4aac0112d6ea85421e9bb3ad3b"
+  "built_at_commit": "472a41843fcdb5a2b631ce068e21fa38732a702c"
 }
