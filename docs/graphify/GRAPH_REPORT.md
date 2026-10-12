@@ -1,7 +1,7 @@
-# Graph Report - localchain  (2026-10-05)
+# Graph Report - localchain  (2026-10-12)
 
 ## Corpus Check
-- 56 files · ~67,827 words
+- 56 files · ~67,860 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 3 file(s) not represented in the graph (top: (none) 1, .css 1, .jsonl 1)
 
@@ -142,7 +142,7 @@ Cohesion: 0.33
 Nodes (6): dependencies, axios, next, react, react-dom, recharts
 
 ## Knowledge Gaps
-- **144 isolated node(s):** `fs`, `path`, `os`, `TEST_DB`, `request` (+139 more)
+- **10 isolated node(s):** `axios`, `jest`, `axios`, `react-dom`, `autoprefixer` (+5 more)
   These have ≤1 connection - possible missing edges. (Counts symbols only; 181 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
 - **7 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
@@ -151,8 +151,8 @@ _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `react` connect `frontend/package.json` to `security.jsx`?**
   _High betweenness centrality (0.172) - this node is a cross-community bridge._
-- **What connects `fs`, `path`, `os` to the rest of the system?**
-  _144 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **What connects `axios`, `jest`, `axios` to the rest of the system?**
+  _10 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `frontend/package.json` be split into smaller, more focused modules?**
   _Cohesion score 0.0824524312896406 - nodes in this community are weakly interconnected._
 - **Why does `next` connect `jest.config.js` to `frontend/package.json`?**
