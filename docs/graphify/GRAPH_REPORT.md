@@ -1,9 +1,7 @@
-# Graph Report - localchain  (2026-10-12)
+# Graph Report - localchain  (2026-10-19)
 
 ## Corpus Check
-- 56 files · ~67,860 words
-- Verdict: corpus is large enough that graph structure adds value.
-- Unclassified: 3 file(s) not represented in the graph (top: (none) 1, .css 1, .jsonl 1)
+- Corpus is ~49,425 words - fits in a single context window. You may not need a graph.
 
 ## Summary
 - 340 nodes · 536 edges · 25 communities (18 shown, 7 thin omitted)
