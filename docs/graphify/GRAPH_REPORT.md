@@ -1,46 +1,46 @@
-# Graph Report - localchain  (2026-10-19)
+# Graph Report - localchain  (2026-10-26)
 
 ## Corpus Check
-- Corpus is ~49,425 words - fits in a single context window. You may not need a graph.
+- 56 files · ~50,091 words
+- Verdict: corpus is large enough that graph structure adds value.
+- Unclassified: 3 file(s) not represented in the graph (top: (none) 1, .css 1, .jsonl 1)
 
 ## Summary
-- 340 nodes · 536 edges · 25 communities (18 shown, 7 thin omitted)
-- Extraction: 89% EXTRACTED · 11% INFERRED · 0% AMBIGUOUS · INFERRED: 60 edges (avg confidence: 0.85)
+- 300 nodes · 507 edges · 23 communities (16 shown, 7 thin omitted)
+- Extraction: 88% EXTRACTED · 12% INFERRED · 0% AMBIGUOUS · INFERRED: 60 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Community Hubs (Navigation)
-- frontend/package.json
-- quarantine.js
-- backend/package.json
-- watchdog.js
 - server.js
-- reputation.js
-- audit-logger.js
+- frontend/package.json
+- backend/package.json
+- useApi()
+- watchdog.js
 - content-analyzer.js
+- reputation.js
 - rate-limiter.js
-- supertest
-- validation.js
-- jest.config.js
+- audit-logger.js
+- Layout.jsx
+- rules
+- scrape_configs
+- watchdog/package.json
 - injection-scanner.js
 - sanitization.js
-- watchdog/package.json
-- devDependencies
 - security.jsx
-- dependencies
 - next.config.js
 - start.sh script
 
 ## God Nodes (most connected - your core abstractions)
 1. `useApi()` - 10 edges
 2. `sanitizeString()` - 9 edges
-3. `getDb()` - 8 edges
-4. `getDb()` - 8 edges
+3. `react` - 9 edges
+4. `supertest` - 8 edges
 5. `getReputation()` - 8 edges
-6. `react` - 8 edges
-7. `scanContent()` - 7 edges
-8. `supertest` - 7 edges
+6. `scanContent()` - 7 edges
+7. `getDb()` - 7 edges
+8. `sanitizeObject()` - 6 edges
 9. `getDb()` - 6 edges
-10. `sanitizeObject()` - 6 edges
+10. `StatCard()` - 6 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `App()` --calls--> `Layout()`  [EXTRACTED]
@@ -57,107 +57,89 @@
 ## Import Cycles
 - None detected.
 
-## Communities (25 total, 7 thin omitted)
+## Communities (23 total, 7 thin omitted)
 
-### Community 0 - "frontend/package.json"
+### Community 0 - "server.js"
+Cohesion: 0.09
+Nodes (25): ALLOWED_CONTENT_TYPES, blockQuerySchema, recordSchema, recordsQuerySchema, txQuerySchema, validateRecord(), validateRecordsQuery(), validateTxQuery() (+17 more)
+
+### Community 1 - "frontend/package.json"
 Cohesion: 0.08
-Nodes (33): StatCard(), api, useApi(), axios, jest, name, private, scripts (+25 more)
-
-### Community 1 - "quarantine.js"
-Cohesion: 0.11
-Nodes (22): closeDb(), Database, deleteEntry(), fs, getDb(), getQuarantineCount(), getQuarantineStats(), path (+14 more)
+Nodes (31): dependencies, axios@^1.7.0, react@^18.3.0, react-dom@^18.3.0, recharts@^2.12.0, devDependencies, autoprefixer@^10.4.0, jest@^30.3.0 (+23 more)
 
 ### Community 2 - "backend/package.json"
-Cohesion: 0.07
-Nodes (26): dependencies, axios, better-sqlite3, cors, express, express-rate-limit, helmet, zod (+18 more)
-
-### Community 3 - "watchdog.js"
-Cohesion: 0.10
-Nodes (19): { execSync }, http, os, canRestart(), CHECK_MAP, checkRpcHealth(), checkStaleBlocks(), { exec, execSync } (+11 more)
-
-### Community 4 - "server.js"
 Cohesion: 0.09
-Nodes (20): addressLimiter, app, { auditMiddleware, queryAuditLog, getAuditStats }, axios, config, { contentAnalysisMiddleware }, cors, cosmos (+12 more)
+Nodes (27): dependencies, axios@^1.7.0, better-sqlite3@^12.10.0, cors@^2.8.5, express@^4.21.0, express-rate-limit@^8.5.2, helmet@^8.1.0, zod@^4.4.3 (+19 more)
 
-### Community 5 - "reputation.js"
-Cohesion: 0.21
-Nodes (18): addFlag(), closeDb(), Database, fs, getDb(), getFlaggedAddresses(), getLevel(), getReputation() (+10 more)
+### Community 3 - "useApi()"
+Cohesion: 0.19
+Nodes (15): StatCard(), api, useApi(), DetailRow(), Explorer(), Dashboard(), Nodes(), Row() (+7 more)
 
-### Community 6 - "audit-logger.js"
-Cohesion: 0.20
-Nodes (16): auditMiddleware(), closeDb(), crypto, Database, fs, getAuditStats(), getDb(), hashContent() (+8 more)
-
-### Community 7 - "content-analyzer.js"
+### Community 4 - "watchdog.js"
 Cohesion: 0.16
-Nodes (14): analyzeContent(), calculateEntropy(), CODE_PATTERNS, CONFIG_PATTERNS, CONTENT_CATEGORIES, contentAnalysisMiddleware(), crypto, DATA_PATTERNS (+6 more)
+Nodes (11): canRestart(), CHECK_MAP, checkRpcHealth(), checkStaleBlocks(), httpGet(), lastHeightChangeTime, log(), performAction() (+3 more)
+
+### Community 5 - "content-analyzer.js"
+Cohesion: 0.19
+Nodes (12): analyzeContent(), calculateEntropy(), CODE_PATTERNS, CONFIG_PATTERNS, CONTENT_CATEGORIES, contentAnalysisMiddleware(), DATA_PATTERNS, detectCategory() (+4 more)
+
+### Community 7 - "reputation.js"
+Cohesion: 0.33
+Nodes (11): addFlag(), getDb(), getFlaggedAddresses(), getLevel(), getReputation(), getTopAddresses(), isBlocked(), reputationMiddleware() (+3 more)
 
 ### Community 8 - "rate-limiter.js"
-Cohesion: 0.17
-Nodes (8): apiRequestLimiter, createAddressBasedLimiter(), createRateLimiter(), getRateLimitStatus(), rateLimit, recordSubmissionLimiter, txQueryLimiter, {
-  createRateLimiter,
-  createAddressBasedLimiter,
-  getRateLimitStatus,
-  DEFAULT_WINDOW_MS,
-  DEFAULT_MAX_RECORD_SUBMISSIONS,
-  DEFAULT_MAX_API_REQUESTS,
-  DEFAULT_MAX_TX_QUERIES,
-}
+Cohesion: 0.19
+Nodes (6): apiRequestLimiter, createAddressBasedLimiter(), createRateLimiter(), getRateLimitStatus(), recordSubmissionLimiter, txQueryLimiter
 
-### Community 9 - "supertest"
-Cohesion: 0.13
-Nodes (10): request, axios, request, axios, request, SAMPLE_RECORDS, axios, request (+2 more)
+### Community 9 - "audit-logger.js"
+Cohesion: 0.35
+Nodes (8): auditMiddleware(), getAuditStats(), getDb(), hashContent(), logSecurityEvent(), logTransaction(), queryAuditLog(), TEST_DB
 
-### Community 11 - "validation.js"
-Cohesion: 0.17
-Nodes (10): ALLOWED_CONTENT_TYPES, blockQuerySchema, recordSchema, recordsQuerySchema, txQuerySchema, validateRecord(), validateRecordsQuery(), validateTxQuery() (+2 more)
-
-### Community 12 - "jest.config.js"
+### Community 10 - "Layout.jsx"
 Cohesion: 0.20
-Nodes (7): Layout(), NAV_ITEMS, createJestConfig, customConfig, nextJest, App(), next
+Nodes (7): Layout(), NAV_ITEMS, createJestConfig, customConfig, next@^14.2.0, App(), next
 
-### Community 13 - "injection-scanner.js"
-Cohesion: 0.42
-Nodes (9): calculateRiskScore(), getHighestSeverity(), INJECTION_PATTERNS, POISONING_INDICATORS, scanContent(), scanForInjections(), scanForPoisoning(), scanRecord() (+1 more)
+### Community 11 - "rules"
+Cohesion: 0.17
+Nodes (11): description, summary, groups, name, rules, severity, alert, annotations (+3 more)
 
-### Community 14 - "sanitization.js"
-Cohesion: 0.44
-Nodes (9): normalizeWhitespace(), sanitizeObject(), sanitizeQuery(), sanitizeRecord(), sanitizeString(), stripBidiOverrides(), stripControlChars(), stripZeroWidth() (+1 more)
-
-### Community 15 - "watchdog/package.json"
+### Community 12 - "scrape_configs"
 Cohesion: 0.18
-Nodes (10): description, devDependencies, jest, jest, main, name, scripts, start (+2 more)
+Nodes (10): global, evaluation_interval, scrape_interval, rule_files, scrape_configs, job_name, metrics_path, scrape_interval (+2 more)
 
-### Community 16 - "devDependencies"
-Cohesion: 0.25
-Nodes (8): devDependencies, autoprefixer, jest, jest-environment-jsdom, postcss, tailwindcss, @testing-library/jest-dom, @testing-library/react
+### Community 13 - "watchdog/package.json"
+Cohesion: 0.20
+Nodes (10): description, devDependencies, jest@^30.3.0, jest, main, name, scripts, start (+2 more)
 
-### Community 17 - "security.jsx"
+### Community 14 - "injection-scanner.js"
+Cohesion: 0.49
+Nodes (8): calculateRiskScore(), getHighestSeverity(), INJECTION_PATTERNS, POISONING_INDICATORS, scanContent(), scanForInjections(), scanForPoisoning(), scanRecord()
+
+### Community 15 - "sanitization.js"
+Cohesion: 0.51
+Nodes (8): normalizeWhitespace(), sanitizeObject(), sanitizeQuery(), sanitizeRecord(), sanitizeString(), stripBidiOverrides(), stripControlChars(), stripZeroWidth()
+
+### Community 16 - "security.jsx"
 Cohesion: 0.46
 Nodes (7): EntryDetail(), Security(), StatCard(), STATUS_COLORS, StatusBadge(), THREAT_COLORS, ThreatBadge()
 
-### Community 18 - "dependencies"
-Cohesion: 0.33
-Nodes (6): dependencies, axios, next, react, react-dom, recharts
-
 ## Knowledge Gaps
-- **10 isolated node(s):** `axios`, `jest`, `axios`, `react-dom`, `autoprefixer` (+5 more)
-  These have ≤1 connection - possible missing edges. (Counts symbols only; 181 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
 - **7 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `react` connect `frontend/package.json` to `security.jsx`?**
-  _High betweenness centrality (0.172) - this node is a cross-community bridge._
-- **What connects `axios`, `jest`, `axios` to the rest of the system?**
-  _10 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Should `frontend/package.json` be split into smaller, more focused modules?**
-  _Cohesion score 0.0824524312896406 - nodes in this community are weakly interconnected._
-- **Why does `next` connect `jest.config.js` to `frontend/package.json`?**
+- **Why does `react` connect `useApi()` to `security.jsx`, `frontend/package.json`?**
+  _High betweenness centrality (0.161) - this node is a cross-community bridge._
+- **Should `server.js` be split into smaller, more focused modules?**
+  _Cohesion score 0.08637873754152824 - nodes in this community are weakly interconnected._
+- **Why does `@testing-library/react` connect `frontend/package.json` to `useApi()`?**
   _High betweenness centrality (0.057) - this node is a cross-community bridge._
-- **Should `quarantine.js` be split into smaller, more focused modules?**
-  _Cohesion score 0.11330049261083744 - nodes in this community are weakly interconnected._
+- **Should `frontend/package.json` be split into smaller, more focused modules?**
+  _Cohesion score 0.08266129032258064 - nodes in this community are weakly interconnected._
+- **Why does `next` connect `Layout.jsx` to `frontend/package.json`?**
+  _High betweenness centrality (0.054) - this node is a cross-community bridge._
 - **Should `backend/package.json` be split into smaller, more focused modules?**
-  _Cohesion score 0.07407407407407407 - nodes in this community are weakly interconnected._
-- **Should `watchdog.js` be split into smaller, more focused modules?**
-  _Cohesion score 0.09971509971509972 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.09259259259259259 - nodes in this community are weakly interconnected._
+- **Should `graphify_pipeline.py` be split into smaller, more focused modules?**
+  _Cohesion score 0.13333333333333333 - nodes in this community are weakly interconnected._
