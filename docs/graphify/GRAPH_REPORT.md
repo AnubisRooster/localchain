@@ -1,26 +1,24 @@
-# Graph Report - localchain  (2026-10-26)
+# Graph Report - localchain  (2026-11-02)
 
 ## Corpus Check
-- 56 files · ~50,091 words
-- Verdict: corpus is large enough that graph structure adds value.
-- Unclassified: 3 file(s) not represented in the graph (top: (none) 1, .css 1, .jsonl 1)
+- Corpus is ~47,882 words - fits in a single context window. You may not need a graph.
 
 ## Summary
-- 300 nodes · 507 edges · 23 communities (16 shown, 7 thin omitted)
-- Extraction: 88% EXTRACTED · 12% INFERRED · 0% AMBIGUOUS · INFERRED: 60 edges (avg confidence: 0.85)
+- 350 nodes · 561 edges · 23 communities (16 shown, 7 thin omitted)
+- Extraction: 89% EXTRACTED · 11% INFERRED · 0% AMBIGUOUS · INFERRED: 60 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Community Hubs (Navigation)
+- useApi()
 - server.js
 - frontend/package.json
 - backend/package.json
-- useApi()
 - watchdog.js
-- content-analyzer.js
+- quarantine.js
 - reputation.js
-- rate-limiter.js
 - audit-logger.js
-- Layout.jsx
+- content-analyzer.js
+- jest.config.js
 - rules
 - scrape_configs
 - watchdog/package.json
@@ -35,12 +33,12 @@
 2. `sanitizeString()` - 9 edges
 3. `react` - 9 edges
 4. `supertest` - 8 edges
-5. `getReputation()` - 8 edges
-6. `scanContent()` - 7 edges
-7. `getDb()` - 7 edges
-8. `sanitizeObject()` - 6 edges
+5. `getDb()` - 8 edges
+6. `getReputation()` - 8 edges
+7. `scanContent()` - 7 edges
+8. `getDb()` - 7 edges
 9. `getDb()` - 6 edges
-10. `StatCard()` - 6 edges
+10. `sanitizeObject()` - 6 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `App()` --calls--> `Layout()`  [EXTRACTED]
@@ -59,45 +57,45 @@
 
 ## Communities (23 total, 7 thin omitted)
 
-### Community 0 - "server.js"
-Cohesion: 0.09
-Nodes (25): ALLOWED_CONTENT_TYPES, blockQuerySchema, recordSchema, recordsQuerySchema, txQuerySchema, validateRecord(), validateRecordsQuery(), validateTxQuery() (+17 more)
+### Community 0 - "useApi()"
+Cohesion: 0.08
+Nodes (29): request, axios, request, axios, request, SAMPLE_RECORDS, axios, fs (+21 more)
 
-### Community 1 - "frontend/package.json"
+### Community 1 - "server.js"
+Cohesion: 0.07
+Nodes (27): apiRequestLimiter, createAddressBasedLimiter(), createRateLimiter(), getRateLimitStatus(), rateLimit, recordSubmissionLimiter, txQueryLimiter, ALLOWED_CONTENT_TYPES (+19 more)
+
+### Community 2 - "frontend/package.json"
 Cohesion: 0.08
 Nodes (31): dependencies, axios@^1.7.0, react@^18.3.0, react-dom@^18.3.0, recharts@^2.12.0, devDependencies, autoprefixer@^10.4.0, jest@^30.3.0 (+23 more)
 
-### Community 2 - "backend/package.json"
+### Community 3 - "backend/package.json"
 Cohesion: 0.09
 Nodes (27): dependencies, axios@^1.7.0, better-sqlite3@^12.10.0, cors@^2.8.5, express@^4.21.0, express-rate-limit@^8.5.2, helmet@^8.1.0, zod@^4.4.3 (+19 more)
 
-### Community 3 - "useApi()"
-Cohesion: 0.19
-Nodes (15): StatCard(), api, useApi(), DetailRow(), Explorer(), Dashboard(), Nodes(), Row() (+7 more)
-
 ### Community 4 - "watchdog.js"
-Cohesion: 0.16
-Nodes (11): canRestart(), CHECK_MAP, checkRpcHealth(), checkStaleBlocks(), httpGet(), lastHeightChangeTime, log(), performAction() (+3 more)
+Cohesion: 0.10
+Nodes (19): { execSync }, http, os, canRestart(), CHECK_MAP, checkRpcHealth(), checkStaleBlocks(), { exec, execSync } (+11 more)
 
-### Community 5 - "content-analyzer.js"
+### Community 5 - "quarantine.js"
+Cohesion: 0.15
+Nodes (17): Database, deleteEntry(), fs, getDb(), getQuarantineCount(), getQuarantineStats(), path, quarantineEntry() (+9 more)
+
+### Community 6 - "reputation.js"
 Cohesion: 0.19
-Nodes (12): analyzeContent(), calculateEntropy(), CODE_PATTERNS, CONFIG_PATTERNS, CONTENT_CATEGORIES, contentAnalysisMiddleware(), DATA_PATTERNS, detectCategory() (+4 more)
+Nodes (17): addFlag(), Database, fs, getDb(), getFlaggedAddresses(), getLevel(), getReputation(), getTopAddresses() (+9 more)
 
-### Community 7 - "reputation.js"
-Cohesion: 0.33
-Nodes (11): addFlag(), getDb(), getFlaggedAddresses(), getLevel(), getReputation(), getTopAddresses(), isBlocked(), reputationMiddleware() (+3 more)
-
-### Community 8 - "rate-limiter.js"
+### Community 7 - "audit-logger.js"
 Cohesion: 0.19
-Nodes (6): apiRequestLimiter, createAddressBasedLimiter(), createRateLimiter(), getRateLimitStatus(), recordSubmissionLimiter, txQueryLimiter
+Nodes (15): auditMiddleware(), crypto, Database, fs, getAuditStats(), getDb(), hashContent(), logSecurityEvent() (+7 more)
 
-### Community 9 - "audit-logger.js"
-Cohesion: 0.35
-Nodes (8): auditMiddleware(), getAuditStats(), getDb(), hashContent(), logSecurityEvent(), logTransaction(), queryAuditLog(), TEST_DB
+### Community 8 - "content-analyzer.js"
+Cohesion: 0.18
+Nodes (13): analyzeContent(), calculateEntropy(), CODE_PATTERNS, CONFIG_PATTERNS, CONTENT_CATEGORIES, contentAnalysisMiddleware(), crypto, DATA_PATTERNS (+5 more)
 
-### Community 10 - "Layout.jsx"
-Cohesion: 0.20
-Nodes (7): Layout(), NAV_ITEMS, createJestConfig, customConfig, next@^14.2.0, App(), next
+### Community 10 - "jest.config.js"
+Cohesion: 0.18
+Nodes (8): Layout(), NAV_ITEMS, createJestConfig, customConfig, nextJest, next@^14.2.0, App(), next
 
 ### Community 11 - "rules"
 Cohesion: 0.17
@@ -130,16 +128,16 @@ Nodes (7): EntryDetail(), Security(), StatCard(), STATUS_COLORS, StatusBadge(), 
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `react` connect `useApi()` to `security.jsx`, `frontend/package.json`?**
-  _High betweenness centrality (0.161) - this node is a cross-community bridge._
-- **Should `server.js` be split into smaller, more focused modules?**
-  _Cohesion score 0.08637873754152824 - nodes in this community are weakly interconnected._
+  _High betweenness centrality (0.150) - this node is a cross-community bridge._
+- **Should `useApi()` be split into smaller, more focused modules?**
+  _Cohesion score 0.08080808080808081 - nodes in this community are weakly interconnected._
 - **Why does `@testing-library/react` connect `frontend/package.json` to `useApi()`?**
-  _High betweenness centrality (0.057) - this node is a cross-community bridge._
+  _High betweenness centrality (0.055) - this node is a cross-community bridge._
+- **Should `server.js` be split into smaller, more focused modules?**
+  _Cohesion score 0.06612685560053981 - nodes in this community are weakly interconnected._
+- **Why does `next` connect `jest.config.js` to `frontend/package.json`?**
+  _High betweenness centrality (0.053) - this node is a cross-community bridge._
 - **Should `frontend/package.json` be split into smaller, more focused modules?**
   _Cohesion score 0.08266129032258064 - nodes in this community are weakly interconnected._
-- **Why does `next` connect `Layout.jsx` to `frontend/package.json`?**
-  _High betweenness centrality (0.054) - this node is a cross-community bridge._
 - **Should `backend/package.json` be split into smaller, more focused modules?**
   _Cohesion score 0.09259259259259259 - nodes in this community are weakly interconnected._
-- **Should `graphify_pipeline.py` be split into smaller, more focused modules?**
-  _Cohesion score 0.13333333333333333 - nodes in this community are weakly interconnected._
