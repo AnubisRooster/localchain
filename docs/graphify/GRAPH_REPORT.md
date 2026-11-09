@@ -1,10 +1,12 @@
-# Graph Report - localchain  (2026-11-02)
+# Graph Report - localchain  (2026-11-09)
 
 ## Corpus Check
-- Corpus is ~47,882 words - fits in a single context window. You may not need a graph.
+- 56 files · ~50,537 words
+- Verdict: corpus is large enough that graph structure adds value.
+- Unclassified: 3 file(s) not represented in the graph (top: (none) 1, .css 1, .jsonl 1)
 
 ## Summary
-- 350 nodes · 561 edges · 23 communities (16 shown, 7 thin omitted)
+- 350 nodes · 563 edges · 23 communities (16 shown, 7 thin omitted)
 - Extraction: 89% EXTRACTED · 11% INFERRED · 0% AMBIGUOUS · INFERRED: 60 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
@@ -14,8 +16,8 @@
 - frontend/package.json
 - backend/package.json
 - watchdog.js
-- quarantine.js
 - reputation.js
+- quarantine.js
 - audit-logger.js
 - content-analyzer.js
 - jest.config.js
@@ -62,8 +64,8 @@ Cohesion: 0.08
 Nodes (29): request, axios, request, axios, request, SAMPLE_RECORDS, axios, fs (+21 more)
 
 ### Community 1 - "server.js"
-Cohesion: 0.07
-Nodes (27): apiRequestLimiter, createAddressBasedLimiter(), createRateLimiter(), getRateLimitStatus(), rateLimit, recordSubmissionLimiter, txQueryLimiter, ALLOWED_CONTENT_TYPES (+19 more)
+Cohesion: 0.06
+Nodes (29): apiRequestLimiter, createAddressBasedLimiter(), createRateLimiter(), getRateLimitStatus(), rateLimit, recordSubmissionLimiter, txQueryLimiter, ALLOWED_CONTENT_TYPES (+21 more)
 
 ### Community 2 - "frontend/package.json"
 Cohesion: 0.08
@@ -77,13 +79,13 @@ Nodes (27): dependencies, axios@^1.7.0, better-sqlite3@^12.10.0, cors@^2.8.5, ex
 Cohesion: 0.10
 Nodes (19): { execSync }, http, os, canRestart(), CHECK_MAP, checkRpcHealth(), checkStaleBlocks(), { exec, execSync } (+11 more)
 
-### Community 5 - "quarantine.js"
-Cohesion: 0.15
-Nodes (17): Database, deleteEntry(), fs, getDb(), getQuarantineCount(), getQuarantineStats(), path, quarantineEntry() (+9 more)
-
-### Community 6 - "reputation.js"
+### Community 5 - "reputation.js"
 Cohesion: 0.19
 Nodes (17): addFlag(), Database, fs, getDb(), getFlaggedAddresses(), getLevel(), getReputation(), getTopAddresses() (+9 more)
+
+### Community 6 - "quarantine.js"
+Cohesion: 0.19
+Nodes (15): Database, deleteEntry(), fs, getDb(), getQuarantineCount(), getQuarantineStats(), path, quarantineEntry() (+7 more)
 
 ### Community 7 - "audit-logger.js"
 Cohesion: 0.19
@@ -134,7 +136,7 @@ _Questions this graph is uniquely positioned to answer:_
 - **Why does `@testing-library/react` connect `frontend/package.json` to `useApi()`?**
   _High betweenness centrality (0.055) - this node is a cross-community bridge._
 - **Should `server.js` be split into smaller, more focused modules?**
-  _Cohesion score 0.06612685560053981 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.06090808416389812 - nodes in this community are weakly interconnected._
 - **Why does `next` connect `jest.config.js` to `frontend/package.json`?**
   _High betweenness centrality (0.053) - this node is a cross-community bridge._
 - **Should `frontend/package.json` be split into smaller, more focused modules?**
